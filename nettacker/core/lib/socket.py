@@ -9,11 +9,98 @@ import socket
 import ssl
 import struct
 import time
+import random
 
 from nettacker.core.lib.base import BaseEngine, BaseLibrary
 from nettacker.core.utils.common import reverse_and_regex_condition, replace_dependent_response
 
 log = logging.getLogger(__name__)
+IP_VERSION = 4
+IP_IHL = 5
+IP_TOS = 0
+IP_TTL = 64
+IP_PROTO_ICMP = 1
+IP_DF = 0x4000     # Don't Fragment
+
+ICMP_ECHO_REQUEST = 8
+ICMP_ECHO_REPLY = 0
+
+def checksum(data):
+        if len(data) % 2:
+            data += b'\x00'
+
+        s = 0
+        for i in range(0, len(data), 2):
+            s += (data[i] << 8) + data[i + 1]
+            s &= 0xffffffff
+
+        s = (s >> 16) + (s & 0xffff)
+        s += (s >> 16)
+        return (~s) & 0xffff
+
+def build_ip(src, dst, payload_len, ipid=None):
+    if ipid is None:
+        ipid = random.randint(0, 65535)
+
+    ver_ihl = (IP_VERSION << 4) + IP_IHL
+    total_len = IP_IHL * 4 + payload_len
+
+    header = struct.pack(
+        "!BBHHHBBH4s4s",
+        ver_ihl,
+        IP_TOS,
+        total_len,
+        ipid,
+        IP_DF,
+        IP_TTL,
+        IP_PROTO_ICMP,
+        0,  # checksum placeholder
+        socket.inet_aton(src),
+        socket.inet_aton(dst)
+    )
+
+    chksum = checksum(header)
+
+    header = struct.pack(
+        "!BBHHHBBH4s4s",
+        ver_ihl,
+        IP_TOS,
+        total_len,
+        ipid,
+        IP_DF,
+        IP_TTL,
+        IP_PROTO_ICMP,
+        chksum,
+        socket.inet_aton(src),
+        socket.inet_aton(dst)
+    )
+
+    return header
+
+def build_icmp(id, seq=1):
+        payload = b'\x00' * 32  # Nmap default-ish
+
+        header = struct.pack(
+            "!BBHHH",
+            ICMP_ECHO_REQUEST,
+            0,
+            0,
+            id,
+            seq
+        )
+
+        chksum = checksum(header + payload)
+
+        header = struct.pack(
+            "!BBHHH",
+            ICMP_ECHO_REQUEST,
+            0,
+            chksum,
+            id,
+            seq
+        )
+
+        return header + payload
 
 
 def create_tcp_socket(host, port, timeout):
@@ -89,7 +176,7 @@ class SocketLibrary(BaseLibrary):
             "response": response.decode(errors="ignore"),
             "service": service,
             "ssl_flag": ssl_flag,
-        }
+        }            
 
     def socket_icmp(self, host, timeout):
         """
@@ -160,80 +247,61 @@ class SocketLibrary(BaseLibrary):
         ------------------
         5 Aug 2021 - Modified by Ali Razmjoo Qalaei (Reformat the code and more human readable)
         """
-        icmp_socket = socket.getprotobyname("icmp")
-        socket_connection = socket.socket(socket.AF_INET, socket.SOCK_RAW, icmp_socket)
-        random_integer = os.getpid() & 0xFFFF
-        icmp_echo_request = 8
-        # Make a dummy header with a 0 checksum.
-        dummy_checksum = 0
-        header = struct.pack("bbHHh", icmp_echo_request, 0, dummy_checksum, random_integer, 1)
-        data = (
-            struct.pack("d", time.time())
-            + struct.pack("d", time.time())
-            + str((76 - struct.calcsize("d")) * "Q").encode()
-        )  # packet size = 76 (removed 8 bytes size of header)
-        source_string = header + data
-        # Calculate the checksum on the data and the dummy header.
-        calculate_data = 0
-        max_size = (len(source_string) / 2) * 2
-        counter = 0
-        while counter < max_size:
-            calculate_data += source_string[counter + 1] * 256 + source_string[counter]
-            calculate_data = calculate_data & 0xFFFFFFFF  # Necessary?
-            counter += 2
+        host = socket.getaddrinfo(host,None , socket.AF_INET)[0][4][0]
+        source_ip = socket.gethostbyname(socket.getfqdn())
+        random_integer = os.getpid() & 0xffff
+        icmp = build_icmp(random_integer)
+        ip = build_ip(source_ip, host, len(icmp))
+        packet = ip + icmp
+        transfer_buffer = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
+        receiver_buffer = socket.socket(socket.AF_INET , socket.SOCK_RAW , socket.IPPROTO_ICMP)
+        # sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
+        receiver_buffer.setblocking(0)
+        transfer_buffer.sendto(packet, (host, 0))
 
-        if max_size < len(source_string):
-            calculate_data += source_string[len(source_string) - 1]
-            calculate_data = calculate_data & 0xFFFFFFFF  # Necessary?
-
-        calculate_data = (calculate_data >> 16) + (calculate_data & 0xFFFF)
-        calculate_data = calculate_data + (calculate_data >> 16)
-        calculated_data = ~calculate_data & 0xFFFF
-
-        # Swap bytes. Bugger me if I know why.
-        dummy_checksum = calculated_data >> 8 | (calculated_data << 8 & 0xFF00)
-
-        header = struct.pack(
-            "bbHHh",
-            icmp_echo_request,
-            0,
-            socket.htons(dummy_checksum),
-            random_integer,
-            1,
-        )
-        socket_connection.sendto(
-            header + data, (socket.gethostbyname(host), 1)
-        )  # Don't know about the 1
-
+        start = time.time()
+        timeout = 3
+        delay = None
+        received_packet=None
+        packet_type = None
+        packet_code = None
+        icmp_header = None
         while True:
             started_select = time.time()
-            what_ready = select.select([socket_connection], [], [], timeout)
+            what_ready = select.select([receiver_buffer], [], [], timeout)
             how_long_in_select = time.time() - started_select
             if not what_ready[0]:  # Timeout
                 break
             time_received = time.time()
-            received_packet, address = socket_connection.recvfrom(1024)
-            icmp_header = received_packet[20:28]
-            (
-                packet_type,
-                packet_code,
-                packet_checksum,
-                packet_id,
-                packet_sequence,
-            ) = struct.unpack("bbHHh", icmp_header)
-            if packet_id == random_integer:
-                packet_bytes = struct.calcsize("d")
-                time_sent = struct.unpack("d", received_packet[28 : 28 + packet_bytes])[0]
-                delay = time_received - time_sent
-                break
+            received_packet, _ = receiver_buffer.recvfrom(1024)
+            ip_header_len = (received_packet[0] & 0x0F) * 4
+            icmp_header = received_packet[ip_header_len : ip_header_len + 8]
 
+            packet_type, packet_code, _, packet_id, _ = struct.unpack("!BBHHH", icmp_header)
+            
+            if packet_type!=0:
+                continue
+            if packet_id == random_integer :
+                icmp_data_offset = ip_header_len + 8
+                time_sent = struct.unpack(
+                    "d", received_packet[icmp_data_offset : icmp_data_offset + 8]
+                )[0]
+                delay = time_received - time_sent
+                break                    
             timeout = timeout - how_long_in_select
             if timeout <= 0:
                 break
-        socket_connection.close()
-        return {"host": host, "response_time": delay, "ssl_flag": False}
+        receiver_buffer.close()
+        transfer_buffer.close()
+        if delay is None:
+            return {"host": host,"response_time":None, "ssl_flag": False , "log":"open|filtered"}
+        if packet_type == 0:
+            return {"host": host ,"response_time":delay , "ssl_flag":False , "log":"open"}
+        
+        return {"host":host,"response_time":delay,"ssl_flag":False , "log":"filtered"}
+        
 
-
+    
 class SocketEngine(BaseEngine):
     library = SocketLibrary
 

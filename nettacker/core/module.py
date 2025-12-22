@@ -40,7 +40,7 @@ class Module:
                     module_extra_args
                 ]
         self.target = target
-
+        
         self.scan_id = scan_id
         self.skip_service_discovery = options.skip_service_discovery
 
