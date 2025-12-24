@@ -1,5 +1,5 @@
 from collections import deque
-from probe_sender import tcp_probe,udp_probe
+from probe_sender import tcp_probe,udp_probe,tcp_probe_ssl
 from core.lib.probes_loader import version_details
 import re 
 import string
@@ -191,7 +191,7 @@ class ProbeEngine:
                 cpe_os=cpe_os,
                 cpe_h=cpe_h,
             )
-            }
+        }
                 
     
     def check_match_service(self, Signatures , service)->bool:
@@ -214,7 +214,10 @@ class ProbeEngine:
                 if self.check_match_service(probe.Signatures , service):
                     continue
                 
-            response = tcp_probe(self.host , self.port , probe.payload ,probe.timeout_ms, probe.tcpwrappedms)
+            if not flag:
+                response = tcp_probe(self.host , self.port , probe.payload ,probe.timeout_ms, probe.tcpwrappedms)
+            else:
+                response = tcp_probe_ssl(self.host , self.port , probe.payload ,probe.timeout_ms, probe.tcpwrappedms)
             tcp_wrap = response.tcp_wrapped
             peer_name = response.peer_name
             raw = response.raw
@@ -231,6 +234,21 @@ class ProbeEngine:
                     result = matched_.result
                     continue
             
+            for name in probe.fallbacks:
+                _ = self.probes_by_name[name]
+                for signature in _.Signatures:
+                     matched_ = self.Match_reponse(decoded_response , signature)
+                if matched_.status == False:
+                    continue
+                if matched_.status == True and signature.sig_type == "match":
+                    result = matched_.result
+                    return result
+                if matched_.status == True and signature.sig_type == "softmatch":
+                    service = signature.service
+                    result = matched_.result
+                    continue
+    
+    
         return result
                 
             

@@ -3,12 +3,18 @@ import time
 import ssl
 from ip import is_single_ipv4,is_single_ipv6
 
+
+def raw_to_bytes(payload: str) -> bytes:
+    return payload.encode("latin1").decode("unicode_escape").encode("latin1")
+
 def tcp_probe(host , port ,  payload:bytes="" ,timeout_ms=5000 , tcpwrappedms=3000):
     timeout = timeout_ms/1000.0
     tcp_wrapped = tcpwrappedms/1000.0
     s=socket.socket(socket.AF_INET , socket.SOCK_STREAM)
     s.settimeout(timeout)
-    
+    if not isinstance(payload, bytes):
+        payload = raw_to_bytes(payload)
+        
     try:
         s.connect((host,port))
         if payload:
@@ -58,6 +64,9 @@ def tcp_probe_ssl(
     tcpwrappedms=3000,
     server_hostname=None
 ):
+    if not isinstance(payload, bytes):
+        payload = raw_to_bytes(payload)
+        
     hostname = None
     if not is_single_ipv4(host) and not is_single_ipv6(host):
         hostname = host
@@ -131,7 +140,9 @@ def udp_probe(host, port , payload:bytes="" , timeout_ms = 5000 , max_tries=1):
     s=socket.socket(socket.AF_INET , socket.SOCK_DGRAM)
     s.settimeout(timeout)
     addr = (host,port)
-    
+    if not isinstance(payload, bytes):
+        payload = raw_to_bytes(payload)
+        
     try:
         raw=b""
         for _ in range(max_tries):
