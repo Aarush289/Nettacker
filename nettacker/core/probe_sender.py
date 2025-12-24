@@ -1,5 +1,7 @@
 import socket
 import time
+import ssl
+from ip import is_single_ipv4,is_single_ipv6
 
 def tcp_probe(host , port ,  payload:bytes="" ,timeout_ms=5000 , tcpwrappedms=3000):
     timeout = timeout_ms/1000.0
@@ -34,6 +36,7 @@ def tcp_probe(host , port ,  payload:bytes="" ,timeout_ms=5000 , tcpwrappedms=30
         raw = b"".join(chunks)
         return {
             "tcp_wrapped" : tcp_wrap,
+            "ssl":False,
             "peer_name": s.getpeername(),
             "raw_bytes": raw,
             "response": raw.decode(errors="ignore"),
@@ -43,6 +46,83 @@ def tcp_probe(host , port ,  payload:bytes="" ,timeout_ms=5000 , tcpwrappedms=30
     finally:
         try:
             s.close()
+        except Exception:
+            pass
+        
+
+def tcp_probe_ssl(
+    host,
+    port,
+    payload: bytes = b"",
+    timeout_ms=5000,
+    tcpwrappedms=3000,
+    server_hostname=None
+):
+    hostname = None
+    if not is_single_ipv4(host) and not is_single_ipv6(host):
+        hostname = host
+        
+    server_hostname = hostname
+    timeout = timeout_ms / 1000.0
+    tcp_wrapped = tcpwrappedms / 1000.0
+
+    raw_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    raw_sock.settimeout(timeout)
+
+    context = ssl.create_default_context()
+    context.check_hostname = False
+    context.verify_mode = ssl.CERT_NONE
+    
+    try:
+        start = time.time()
+        raw_sock.connect((host, port))
+
+        ssl_sock = context.wrap_socket(
+            raw_sock,
+            server_hostname=server_hostname or host,
+            do_handshake_on_connect=True
+        )
+
+        if payload:
+            ssl_sock.sendall(payload)
+
+        chunks = []
+        while True:
+            remaining = timeout - (time.time() - start)
+            if remaining <= 0:
+                break
+
+            ssl_sock.settimeout(remaining)
+            try:
+                data = ssl_sock.recv(4096)
+                if not data:
+                    break
+                chunks.append(data)
+            except socket.timeout:
+                break
+            except ssl.SSLWantReadError:
+                continue
+
+        elapsed = time.time() - start
+        tcp_wrap = elapsed <= tcp_wrapped and not chunks
+
+        raw = b"".join(chunks)
+
+        return {
+            "tcp_wrapped": tcp_wrap,
+            "ssl": True,
+            "cipher": ssl_sock.cipher(),
+            "peer_name": ssl_sock.getpeername(),
+            "raw_bytes": raw,
+            "response": raw.decode(errors="ignore"),
+        }
+
+    except (OSError, ssl.SSLError):
+        return None
+
+    finally:
+        try:
+            raw_sock.close()
         except Exception:
             pass
         
@@ -75,3 +155,4 @@ def udp_probe(host, port , payload:bytes="" , timeout_ms = 5000 , max_tries=1):
             s.close()
         except Exception:
             pass
+        

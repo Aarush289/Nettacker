@@ -25,6 +25,7 @@ def create_tcp_socket(host, port, timeout):
     except ConnectionRefusedError:
         return None
 
+    
     try:
         socket_connection = ssl.wrap_socket(socket_connection)
         ssl_flag = True
