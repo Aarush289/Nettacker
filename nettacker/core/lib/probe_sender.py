@@ -1,24 +1,34 @@
 import socket
 import time
 import ssl
-from ip import is_single_ipv4,is_single_ipv6
+from nettacker.core.ip import is_single_ipv4,is_single_ipv6
 
 
 def raw_to_bytes(payload: str) -> bytes:
     return payload.encode("latin1").decode("unicode_escape").encode("latin1")
 
-def tcp_probe(host , port ,  payload:bytes="" ,timeout_ms=5000 , tcpwrappedms=3000):
+def tcp_probe(host:str , port:int ,  payload:bytes="" ,timeout_ms=5000 , tcpwrappedms=3000):
     timeout = timeout_ms/1000.0
     tcp_wrapped = tcpwrappedms/1000.0
     s=socket.socket(socket.AF_INET , socket.SOCK_STREAM)
+    # A standard HTTP/1.1 request
+    payload = b"GET / HTTP/1.1\r\nHost: google.com\r\n\r\n" 
     s.settimeout(timeout)
     if not isinstance(payload, bytes):
-        payload = raw_to_bytes(payload)
-        
+        try:
+            payload = raw_to_bytes(payload)
+        except Exception as e:
+            print(f"failed to convert with {e}")
     try:
         s.connect((host,port))
         if payload:
             s.sendall(payload)
+        try:
+            s.shutdown(socket.SHUT_WR)
+            print(f"done")
+        except OSError:
+            print("failed")
+            pass # Some sockets might already be closed by the peer
         
         chunks=[]
         start = time.time()
@@ -38,11 +48,13 @@ def tcp_probe(host , port ,  payload:bytes="" ,timeout_ms=5000 , tcpwrappedms=30
         tcp_wrap=False
         if(time.time()-start<=tcp_wrapped and chunks==[]):
             tcp_wrap = True
-        
+       
         raw = b"".join(chunks)
+        print(f"payload is {payload}")
+        print(f"response is {raw}")
         return {
             "tcp_wrapped" : tcp_wrap,
-            "ssl":False,
+            "ssl_flag":False,
             "peer_name": s.getpeername(),
             "raw_bytes": raw,
             "response": raw.decode(errors="ignore"),
@@ -119,7 +131,7 @@ def tcp_probe_ssl(
 
         return {
             "tcp_wrapped": tcp_wrap,
-            "ssl": True,
+            "ssl_flag": True,
             "cipher": ssl_sock.cipher(),
             "peer_name": ssl_sock.getpeername(),
             "raw_bytes": raw,

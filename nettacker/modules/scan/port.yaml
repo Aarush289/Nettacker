@@ -13,7 +13,7 @@ info:
 payloads:
   - library: socket
     steps:
-      - method: tcp_connect_send_and_receive
+      - method: tcp_and_udp_scan
         timeout: 3
         host: "{target}"
         ports:

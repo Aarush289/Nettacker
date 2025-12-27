@@ -1,8 +1,6 @@
 import yaml
 import re
-import socket
-import time
-
+from importlib import resources
 class version_details:
     def __init__(self, raw ,version_template=None , product=None , info=None ,hostname=None,
                  operating_device=None, device_type=None ,
@@ -20,12 +18,13 @@ class version_details:
         
         
 class Signature:
-    def __init__(self , service , regex ,sig_type="match", version_details=None ):
+    def __init__(self , service , regex ,sig_type="match", version_details=None, ignore_case=False,dotall=False ):
         self.sig_type = sig_type
         self.service = service
         self.regex = regex
         self.version_details = version_details
-        
+        self.ignore_case = ignore_case
+        self.dotall = dotall
         
 class Probe:
     def __init__(self , name , protocol , totalwaits=6000 , tcpwrappedms=3000 ,
@@ -42,13 +41,26 @@ class Probe:
         self.probe_string = probe_string
         self.no_payload = no_payload
         self.Signatures = Signatures or []
-        
-        
-def load_probes_from_yaml(path: str):
-    with open(path, "r", encoding="utf-8") as f:
-        data = yaml.safe_load(f)
-    
-    probes_by_name={}
+  
+
+_PROBES_CACHE = None
+_probes_by_name={}
+def load_probes_from_yaml():
+    global _PROBES_CACHE
+
+    if _PROBES_CACHE is not None:
+        return _PROBES_CACHE
+
+    with resources.files("nettacker.core.lib").joinpath("probes.yaml").open(
+        "r", encoding="utf-8"
+    ) as f:
+        _PROBES_CACHE = yaml.safe_load(f)
+
+    if _PROBES_CACHE is None:
+        load_probes_from_yaml()
+    data = _PROBES_CACHE
+
+    global _probes_by_name
     for p in data["probes"]:
         name = p["name"]
         protocol = p.get("protocol","tcp").lower()
@@ -58,9 +70,9 @@ def load_probes_from_yaml(path: str):
         ports = p.get("ports",[])
         sslports = p.get("sslports",[])
         fallbacks = p.get("fallbacks",[])
+        fallbacks.append("NULL")
         probe_string = p.get("probe_string","")
         no_payload = p.get("no_payload" ,False)
-        
         
         signatures = []
         for s in p.get("signatures",[]):
@@ -69,16 +81,17 @@ def load_probes_from_yaml(path: str):
             pattern = s.get("regex","")
             ignore_case = bool(s.get("Ignore_case", False))
             new_line_specifier = bool(s.get("New_line_specifier", False))
-            
-            
-            flags = 0
-            if ignore_case:
-                flags |= re.IGNORECASE
-            if new_line_specifier:
-                flags |= re.DOTALL
-
-            regex = re.compile(pattern, flags)
-            
+            try:
+                
+                regex = pattern.encode('utf-8').decode('unicode_escape').encode('latin-1')
+                flags = 0
+                if ignore_case:
+                    flags |= re.IGNORECASE
+                if new_line_specifier:
+                    flags |= re.DOTALL
+                regex = re.compile(regex ,flags)
+            except Exception as e:
+                print(f"Probe failed {pattern} with {e}")
             v = s.get("version", {}) or {}
             version = version_details(
                 raw=v.get("raw", ""),
@@ -92,13 +105,14 @@ def load_probes_from_yaml(path: str):
                 cpe_os=(v.get("cpe", {}) or {}).get("cpe_os", ""),
                 cpe_h=(v.get("cpe", {}) or {}).get("cpe_h", ""),
             )
-
             signatures.append(
                 Signature(
                     service=service,
-                    regex = regex,
+                    regex =pattern,
                     sig_type=sig_type,
                     version_details = version,
+                    ignore_case= ignore_case,
+                    dotall= new_line_specifier,
                 )
             )
             
@@ -115,8 +129,9 @@ def load_probes_from_yaml(path: str):
             no_payload=no_payload,
             Signatures=signatures,
         )
+        _probes_by_name[name] = probe
+    print("probes loaded!")
         
-        probes_by_name[name] = probe
-        
-    return probes_by_name
+def build_probes_from_yaml():
+    return _probes_by_name
      
