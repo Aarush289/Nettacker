@@ -7,13 +7,14 @@ from nettacker.core.ip import is_single_ipv4,is_single_ipv6
 def raw_to_bytes(payload: str) -> bytes:
     return payload.encode("latin1").decode("unicode_escape").encode("latin1")
 
-def tcp_probe(host:str , port:int ,  payload:bytes="" ,timeout_ms=5000 , tcpwrappedms=3000):
+def tcp_probe(host:str , port:int ,  payload:str="" ,timeout_ms=5000 , tcpwrappedms=3000):
     timeout = timeout_ms/1000.0
     tcp_wrapped = tcpwrappedms/1000.0
     s=socket.socket(socket.AF_INET , socket.SOCK_STREAM)
-    # A standard HTTP/1.1 request
-    payload = b"GET / HTTP/1.1\r\nHost: google.com\r\n\r\n" 
     s.settimeout(timeout)
+    tcp_wrap=False
+    peer_name=None
+    raw=""
     if not isinstance(payload, bytes):
         try:
             payload = raw_to_bytes(payload)
@@ -21,13 +22,13 @@ def tcp_probe(host:str , port:int ,  payload:bytes="" ,timeout_ms=5000 , tcpwrap
             print(f"failed to convert with {e}")
     try:
         s.connect((host,port))
+        peer_name = s.getpeername()
+        
         if payload:
             s.sendall(payload)
         try:
             s.shutdown(socket.SHUT_WR)
-            print(f"done")
         except OSError:
-            print("failed")
             pass # Some sockets might already be closed by the peer
         
         chunks=[]
@@ -43,28 +44,36 @@ def tcp_probe(host:str , port:int ,  payload:bytes="" ,timeout_ms=5000 , tcpwrap
                     break
                 chunks.append(data)
             except socket.timeout:
-                break
-
+                raw = b"".join(chunks)
+                return{
+                    "tcp_wrapped" : tcp_wrap,
+                    "ssl_flag":False,
+                    "peer_name": "",
+                    "raw_bytes": raw,
+                }
         tcp_wrap=False
         if(time.time()-start<=tcp_wrapped and chunks==[]):
             tcp_wrap = True
        
         raw = b"".join(chunks)
-        print(f"payload is {payload}")
-        print(f"response is {raw}")
         return {
             "tcp_wrapped" : tcp_wrap,
             "ssl_flag":False,
-            "peer_name": s.getpeername(),
+            "peer_name": peer_name,
             "raw_bytes": raw,
-            "response": raw.decode(errors="ignore"),
         }
-    except OSError:
-        return None
+    except socket.timeout :
+        return{
+            "tcp_wrapped" : tcp_wrap,
+            "ssl_flag":False,
+            "peer_name": peer_name,
+            "raw_bytes": raw,
+        }
     finally:
         try:
             s.close()
-        except Exception:
+        except Exception as e:
+            print(f"final excep is {e}")
             pass
         
 

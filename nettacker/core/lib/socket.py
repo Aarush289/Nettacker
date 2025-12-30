@@ -22,9 +22,8 @@ log = logging.getLogger(__name__)
 
 def tcp_connect_send_and_receive(host, port, timeout):
         tcp_socket = create_tcp_socket(host, port, timeout)
-        print("Socket is created!")
         if tcp_socket is None:
-            return None
+            return "closed"
         
         socket_connection, ssl_flag = tcp_socket
         peer_name = socket_connection.getpeername()
@@ -40,15 +39,13 @@ def tcp_connect_send_and_receive(host, port, timeout):
                 response = b""
             except Exception:
                 response = b""
-        print("payload sent!!")
         try:
             service = socket.getservbyport(port)
         except OSError:
             service = "unknown"
 
-        if service == "unknown":
-            return "closed"
-        
+        if response == b"":
+            return "filtered"
         return "open"
 
 def udp_scan(dst_ip, dst_port, timeout=3):
@@ -144,14 +141,9 @@ class SocketLibrary(BaseLibrary):
         }
 
     def tcp_and_udp_scan(self, host, port, timeout):
-        print("hello")
         probes_by_name = build_probes_from_yaml()
-        print("hello2")
         tcp_status = tcp_connect_send_and_receive(host , port , timeout)
-        print(f"tcp scan is successful {tcp_status}")
-        udp_status = udp_scan( host , port , timeout)
-        print(f"udp status is {udp_status} and tcp status is {tcp_status}")
-        if tcp_status == "closed" and udp_status == "closed":
+        if tcp_status == "closed" :
             return {}
         tcp_result = None
         udp_result = None
@@ -165,7 +157,7 @@ class SocketLibrary(BaseLibrary):
             tcp_result = engine.probe_sequentially()
             if tcp_result:
                 return tcp_result
-        
+        udp_status = udp_scan( host , port , timeout)
         if udp_status != "closed":
             engine = ProbeEngine(
                     port= port,
@@ -326,32 +318,151 @@ class SocketLibrary(BaseLibrary):
 class SocketEngine(BaseEngine):
     library = SocketLibrary
 
-    def response_conditions_matched(self, sub_step, response):
-        if sub_step["method"] == "socket_icmp":
-            return response
-    
-        if not response:
-            return []
+    # def response_conditions_matched(self, sub_step, response):
+       
+    #     if not response:
+    #         return []
 
-        if response.get("service"):
-            return {
-                "service": [
-                    {
-                        "running_service": response["service"],
-                        "matched_regex": response.get("response", ""),
-                        "default_service": response["service"],
-                        "ssl_flag": response.get("ssl_flag", False),
-                    }
-                ],
-                "log": response.get("log", {})
-            }
+        
+    #     logs = []
+
+    #     # Core service info
+    #     logs.append(f"running_service: {response.get('service')}")
+    #     logs.append(f"default_service: {response.get('service')}")
+    #     logs.append(f"ssl_flag: {response.get('ssl_flag', False)}")
+
+    #     # Raw response (if present)
+    #     if "response" in response:
+    #         logs.append(f"matched_regex: {response.get('response')}")
+
+    #     # Flatten socket.py log entries
+    #     if isinstance(response.get("log"), list):
+    #         logs.extend(response["log"])
+
+    #     return logs
+
+
+    def response_conditions_matched(self, sub_step, response):
+        
+
+        # tcp_connect_only → flatten to strings
+        if sub_step["method"] == "tcp_connect_only":
+            if not response:
+                return []
+            logs = []
+            for k, v in response.items():
+                logs.append(f"{k}: {v}")
+            return logs
+
+        if sub_step["method"] == "tcp_and_udp_scan":
+            log_response = {
+                    "running_service": response["service"],
+                    "matched_regex": "hello",
+                    "default_service": response["service"],
+                    "ssl_flag": response["ssl_flag"],
+                }
+            logs = []
+            condition_results = {}
+            logs.append(f"running_service: {response["service"]}")
+            logs.append(f"ssl_flag: {response['ssl_flag']}")
+
+            # Flatten socket.py log entries
+            if isinstance(response.get("log"), list):
+                logs.extend(response["log"])
+
+            condition_results["service"] = [str(log_response)]
+            # for condition in copy.deepcopy(condition_results):
+            #     if not condition_results[condition]:
+            #         del condition_results[condition]
+
+            # if "open_port" in condition_results and len(condition_results) > 1:
+            #     del condition_results["open_port"]
+            #     del conditions["open_port"]
+
+            condition_results["log"] = str(logs)
+            return condition_results if condition_results else []
+            return []
+        # socket_icmp → flatten as well
+        if sub_step["method"] == "socket_icmp":
+            if not response:
+                return []
+            logs = []
+            for k, v in response.items():
+                logs.append(f"{k}: {v}")
+            return logs
 
         return []
 
+    # def response_conditions_matched(self, sub_step, response):
+    #     conditions = sub_step["response"]["conditions"].get(
+    #         "service", sub_step["response"]["conditions"]
+    #     )
+    #     condition_type = sub_step["response"]["condition_type"]
+    #     condition_results = {}
+    #     if sub_step["method"] == "tcp_connect_only":
+    #         return response
+    #     if sub_step["method"] == "tcp_and_udp_scan":
+    #         if response:
+    #             # for condition in conditions:
+    #             #     regex = re.findall(
+    #             #         re.compile(conditions[condition]["regex"]),
+    #             #         response["response"]
+    #             #         if condition != "open_port"
+    #             #         else str(response["peer_name"][1]),
+    #             #     )
+    #             #     reverse = conditions[condition]["reverse"]
+    #             #     condition_results[condition] = reverse_and_regex_condition(regex, reverse)
+
+    #             #     if condition_results[condition]:
+    #             #         default_service = response["service"]
+    #             #         ssl_flag = response["ssl_flag"]
+    #             #         matched_regex = condition_results[condition]
+
+    #             #         log_response = {
+    #             #             "running_service": condition,
+    #             #             "matched_regex": matched_regex,
+    #             #             "default_service": default_service,
+    #             #             "ssl_flag": ssl_flag,
+    #             #         }
+    #             log_response = {
+                    # "running_service": response["service"],
+                    # "matched_regex": "hello",
+                    # "default_service": response["service"],
+                    # "ssl_flag": response["ssl_flag"],
+    #             }
+    #             logs = []
+
+    #             logs.append(f"running_service: {response.get('service')}")
+    #             logs.append(f"ssl_flag: {response.get('ssl_flag')}")
+
+    #             # Flatten socket.py log entries
+    #             if isinstance(response.get("log"), list):
+    #                 logs.extend(response["log"])
+
+    #             condition_results["service"] = [str(log_response)]
+    #             # for condition in copy.deepcopy(condition_results):
+    #             #     if not condition_results[condition]:
+    #             #         del condition_results[condition]
+
+    #             # if "open_port" in condition_results and len(condition_results) > 1:
+    #             #     del condition_results["open_port"]
+    #             #     del conditions["open_port"]
+
+    #             condition_results["log"] = logs
+    #             return condition_results if condition_results else []
+    #         return []
+    #     if sub_step["method"] == "socket_icmp":
+    #         return response
+    #     return []
+
     def apply_extra_data(self, sub_step, response):
-        sub_step["response"]["ssl_flag"] = (
-            response["ssl_flag"] if isinstance(response, dict) else False
-        )
-        sub_step["response"]["conditions_results"] = self.response_conditions_matched(
-            sub_step, response
-        )
+        if isinstance(response, list):
+            if response:
+                response = response[0]
+        if response:
+            sub_step["response"]["ssl_flag"] = (
+                response["ssl_flag"] if isinstance(response, dict) else False
+            )
+            sub_step["response"]["conditions_results"] = self.response_conditions_matched(
+                sub_step, response
+            )

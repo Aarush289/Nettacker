@@ -7,11 +7,9 @@ from probes_loader import load_probes_from_yaml
 load_probes_from_yaml()
 
 probes = _probes_by_name
-port = 80
-host = '8.8.8.8'
-protocol = "tcp"
 
-engine = ProbeEngine(port , protocol , host , probes)
+
+engine = ProbeEngine(443, "tcp" , "8.8.8.8" , probes)
 result = engine.probe_sequentially()
 
 print(f"result is {result}")

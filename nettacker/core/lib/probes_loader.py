@@ -82,8 +82,7 @@ def load_probes_from_yaml():
             ignore_case = bool(s.get("Ignore_case", False))
             new_line_specifier = bool(s.get("New_line_specifier", False))
             try:
-                
-                regex = pattern.encode('utf-8').decode('unicode_escape').encode('latin-1')
+                regex = pattern.encode("latin-1")
                 flags = 0
                 if ignore_case:
                     flags |= re.IGNORECASE
@@ -108,7 +107,7 @@ def load_probes_from_yaml():
             signatures.append(
                 Signature(
                     service=service,
-                    regex =pattern,
+                    regex =regex,
                     sig_type=sig_type,
                     version_details = version,
                     ignore_case= ignore_case,
