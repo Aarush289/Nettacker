@@ -135,7 +135,18 @@ def tcp_probe_ssl(
 
         elapsed = time.time() - start
         tcp_wrap = elapsed <= tcp_wrapped and not chunks
-
+        cipher = ssl_sock.cipher()
+        peer_name = ssl_sock.getpeername()
+        try:
+            ssl_sock.shutdown(socket.SHUT_RDWR)
+            ssl_sock.close()
+        except Exception:
+            pass
+        
+        try:
+            raw_sock.close()
+        except Exception:
+            pass
         raw = b"".join(chunks)
 
         return {
@@ -149,12 +160,12 @@ def tcp_probe_ssl(
 
     except (OSError, ssl.SSLError):
         return None
-
     finally:
-        try:
-            raw_sock.close()
-        except Exception:
-            pass
+            try:
+                raw_sock.close()
+            except Exception:
+                pass
+
         
 def udp_probe(host, port , payload:bytes="" , timeout_ms = 5000 , max_tries=1):
     timeout = timeout_ms/1000.0

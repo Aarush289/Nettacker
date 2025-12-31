@@ -11,6 +11,7 @@ import struct
 import time
 import random
 
+from nettacker.core.lib.probe_sender import raw_to_bytes
 from nettacker.core.lib.probes_loader import build_probes_from_yaml
 from nettacker.core.lib.Probe_Engine import ProbeEngine
 from nettacker.core.lib.base import BaseEngine, BaseLibrary
@@ -170,7 +171,85 @@ class SocketLibrary(BaseLibrary):
                 return udp_result
             
         return None
-    
+
+    def ssl_probe_for_cve(self , host , port , timeout_ms=None, payload=None, **kwargs):
+        """
+        Probe for a specific CVE on the target host and port.
+        """
+        if not isinstance(payload, bytes):
+            payload = raw_to_bytes(payload)
+        
+        hostname = host
+        server_hostname = hostname
+        timeout = timeout_ms / 1000.0
+        raw_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        raw_sock.settimeout(timeout)
+
+        context = ssl.create_default_context()
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+        
+        try:
+            start = time.time()
+            raw_sock.connect((host, port))
+
+            ssl_sock = context.wrap_socket(
+                raw_sock,
+                server_hostname=server_hostname or host,
+                do_handshake_on_connect=True
+            )
+
+            if payload:
+                ssl_sock.sendall(payload)
+
+            chunks = []
+            while True:
+                remaining = timeout - (time.time() - start)
+                if remaining <= 0:
+                    break
+
+                ssl_sock.settimeout(remaining)
+                try:
+                    data = ssl_sock.recv(4096)
+                    if not data:
+                        break
+                    chunks.append(data)
+                except socket.timeout:
+                    break
+                except ssl.SSLWantReadError:
+                    continue
+
+            elapsed = time.time() - start
+            raw = b"".join(chunks)
+
+            try:
+                raw_sock.close()
+            except Exception:
+                pass
+            
+            if not raw:
+                return []
+            
+            return {
+                "cipher": ssl_sock.cipher(),
+                "peer_name": ssl_sock.getpeername(),
+                "raw_bytes": raw,
+                "response": raw.decode(errors="ignore"),
+            }
+        except (OSError, ssl.SSLError):
+            return None
+        finally:
+            try:
+                raw_sock.close()
+            except Exception:
+                pass
+
+    def probe_for_cve(self , host , port ,payload=None, timeout=None):
+        """
+        Probe for a specific CVE on the target host and port.
+        """
+        pass
+
     def socket_icmp(self, host, timeout):
         """
         A pure python ping implementation using raw socket.
