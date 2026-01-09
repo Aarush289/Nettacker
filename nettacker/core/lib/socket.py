@@ -195,10 +195,9 @@ class SocketLibrary(BaseLibrary):
         if tcp_status["status"] == "closed" and udp_status["status"]=="closed":
             return None
         
+        print(f"returning the initial result only!")
         return {
             "service":tcp_status["service"],
-            "peername":tcp_status["peername"],
-            "response":tcp_status["response"],
             "ssl_flag":tcp_status["ssl_flag"],
             "log":["Open|Filtered"]
         }
@@ -363,7 +362,7 @@ class SocketEngine(BaseEngine):
         if sub_step["method"] == "tcp_and_udp_scan":
             log_response = {
                     "running_service": response["service"],
-                    "matched_regex": "hello",
+                    "matched_regex": "",
                     "default_service": response["service"],
                     "ssl_flag": response["ssl_flag"],
                 }
