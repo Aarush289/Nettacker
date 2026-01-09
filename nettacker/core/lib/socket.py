@@ -24,7 +24,9 @@ log = logging.getLogger(__name__)
 def tcp_connect_send_and_receive(host, port, timeout):
         tcp_socket = create_tcp_socket(host, port, timeout)
         if tcp_socket is None:
-            return "closed"
+            return {
+                "status":"closed"
+            }
         
         socket_connection, ssl_flag = tcp_socket
         peer_name = socket_connection.getpeername()
@@ -46,21 +48,40 @@ def tcp_connect_send_and_receive(host, port, timeout):
             service = "unknown"
 
         if response == b"":
-            return "filtered"
-        return "open"
+            
+            return {
+                "peer_name": peer_name,
+                "response": response.decode(errors="ignore"),
+                "service": service,
+                "ssl_flag": ssl_flag,
+                "status":"filtered"
+            }
+            
+        return {
+            "peer_name": peer_name,
+            "response": response.decode(errors="ignore"),
+            "service": service,
+            "ssl_flag": ssl_flag,
+            "status":"open"
+        }
 
 def udp_scan(dst_ip, dst_port, timeout=3):
     dst_ip = resolve_hostname(dst_ip)
 
     if dst_ip is None:
-        return "closed"
+        return {
+            "status":"closed"
+        }
+        
     # 1. Setup the ICMP listener FIRST
     try:
         # You need sudo/admin for this
         icmp_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
         icmp_socket.setblocking(False) 
     except PermissionError:
-        return "Error: Root privileges required for ICMP"
+        return {
+            "status":"Permission error"
+        }
 
     # 2. Setup the UDP sender
     udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -77,12 +98,12 @@ def udp_scan(dst_ip, dst_port, timeout=3):
         ready = select.select([icmp_socket], [], [], 1)
         
         if ready[0]:
-            data, addr = icmp_socket.recvfrom(1024)
+            response, addr = icmp_socket.recvfrom(1024)
             
             # The ICMP packet starts after the IP header (usually 20 bytes)
             # ICMP Type is at byte 20, Code is at byte 21
-            icmp_type = data[20]
-            icmp_code = data[21]
+            icmp_type = response[20]
+            icmp_code = response[21]
 
             # Type 3, Code 3 = Destination Port Unreachable
             if icmp_type == 3:
@@ -95,7 +116,9 @@ def udp_scan(dst_ip, dst_port, timeout=3):
 
     icmp_socket.close()
     udp_socket.close()
-    return result
+    return{
+        "status":result
+    }
 
 def create_tcp_socket(host, port, timeout):
     try:
@@ -104,7 +127,7 @@ def create_tcp_socket(host, port, timeout):
         socket_connection.connect((host, port))
         ssl_flag = False
     except ConnectionRefusedError:
-        return None
+        pass
 
     
     try:
@@ -141,14 +164,12 @@ class SocketLibrary(BaseLibrary):
             "ssl_flag": ssl_flag,
         }
 
-    def tcp_and_udp_scan(self, host, port, timeout):
+    def tcp_and_udp_scan(self, host, port:int, timeout):
         probes_by_name = build_probes_from_yaml()
         tcp_status = tcp_connect_send_and_receive(host , port , timeout)
-        if tcp_status == "closed" :
-            return {}
         tcp_result = None
         udp_result = None
-        if tcp_status != "closed":
+        if tcp_status["status"] != "closed":
             engine = ProbeEngine(
                     port= port,
                     protocol="tcp",
@@ -156,10 +177,10 @@ class SocketLibrary(BaseLibrary):
                     probes_by_name=probes_by_name,
             )
             tcp_result = engine.probe_sequentially()
-            if tcp_result:
+            if tcp_result != None:
                 return tcp_result
         udp_status = udp_scan( host , port , timeout)
-        if udp_status != "closed":
+        if udp_status["status"] != "closed":
             engine = ProbeEngine(
                     port= port,
                     protocol="udp",
@@ -167,10 +188,20 @@ class SocketLibrary(BaseLibrary):
                     probes_by_name=probes_by_name,
             )
             udp_result = engine.probe_sequentially()
-            if udp_result:
+            if udp_result != None:
                 return udp_result
             
-        return None
+        
+        if tcp_status["status"] == "closed" and udp_status["status"]=="closed":
+            return None
+        
+        return {
+            "service":tcp_status["service"],
+            "peername":tcp_status["peername"],
+            "response":tcp_status["response"],
+            "ssl_flag":tcp_status["ssl_flag"],
+            "log":["Open|Filtered"]
+        }
 
     
     def socket_icmp(self, host, timeout):
@@ -320,34 +351,7 @@ class SocketLibrary(BaseLibrary):
 class SocketEngine(BaseEngine):
     library = SocketLibrary
 
-    # def response_conditions_matched(self, sub_step, response):
-       
-    #     if not response:
-    #         return []
-
-        
-    #     logs = []
-
-    #     # Core service info
-    #     logs.append(f"running_service: {response.get('service')}")
-    #     logs.append(f"default_service: {response.get('service')}")
-    #     logs.append(f"ssl_flag: {response.get('ssl_flag', False)}")
-
-    #     # Raw response (if present)
-    #     if "response" in response:
-    #         logs.append(f"matched_regex: {response.get('response')}")
-
-    #     # Flatten socket.py log entries
-    #     if isinstance(response.get("log"), list):
-    #         logs.extend(response["log"])
-
-    #     return logs
-
-
     def response_conditions_matched(self, sub_step, response):
-        
-
-        # tcp_connect_only → flatten to strings
         if sub_step["method"] == "tcp_connect_only":
             if not response:
                 return []
@@ -367,24 +371,14 @@ class SocketEngine(BaseEngine):
             condition_results = {}
             logs.append(f"running_service: {response["service"]}")
             logs.append(f"ssl_flag: {response['ssl_flag']}")
-
-            # Flatten socket.py log entries
+            
             if isinstance(response.get("log"), list):
                 logs.extend(response["log"])
 
             condition_results["service"] = [str(log_response)]
-            # for condition in copy.deepcopy(condition_results):
-            #     if not condition_results[condition]:
-            #         del condition_results[condition]
-
-            # if "open_port" in condition_results and len(condition_results) > 1:
-            #     del condition_results["open_port"]
-            #     del conditions["open_port"]
-
             condition_results["log"] = str(logs)
             return condition_results if condition_results else []
-            return []
-        # socket_icmp → flatten as well
+
         if sub_step["method"] == "socket_icmp":
             if not response:
                 return []
@@ -394,68 +388,6 @@ class SocketEngine(BaseEngine):
             return logs
 
         return []
-
-    # def response_conditions_matched(self, sub_step, response):
-    #     conditions = sub_step["response"]["conditions"].get(
-    #         "service", sub_step["response"]["conditions"]
-    #     )
-    #     condition_type = sub_step["response"]["condition_type"]
-    #     condition_results = {}
-    #     if sub_step["method"] == "tcp_connect_only":
-    #         return response
-    #     if sub_step["method"] == "tcp_and_udp_scan":
-    #         if response:
-    #             # for condition in conditions:
-    #             #     regex = re.findall(
-    #             #         re.compile(conditions[condition]["regex"]),
-    #             #         response["response"]
-    #             #         if condition != "open_port"
-    #             #         else str(response["peer_name"][1]),
-    #             #     )
-    #             #     reverse = conditions[condition]["reverse"]
-    #             #     condition_results[condition] = reverse_and_regex_condition(regex, reverse)
-
-    #             #     if condition_results[condition]:
-    #             #         default_service = response["service"]
-    #             #         ssl_flag = response["ssl_flag"]
-    #             #         matched_regex = condition_results[condition]
-
-    #             #         log_response = {
-    #             #             "running_service": condition,
-    #             #             "matched_regex": matched_regex,
-    #             #             "default_service": default_service,
-    #             #             "ssl_flag": ssl_flag,
-    #             #         }
-    #             log_response = {
-                    # "running_service": response["service"],
-                    # "matched_regex": "hello",
-                    # "default_service": response["service"],
-                    # "ssl_flag": response["ssl_flag"],
-    #             }
-    #             logs = []
-
-    #             logs.append(f"running_service: {response.get('service')}")
-    #             logs.append(f"ssl_flag: {response.get('ssl_flag')}")
-
-    #             # Flatten socket.py log entries
-    #             if isinstance(response.get("log"), list):
-    #                 logs.extend(response["log"])
-
-    #             condition_results["service"] = [str(log_response)]
-    #             # for condition in copy.deepcopy(condition_results):
-    #             #     if not condition_results[condition]:
-    #             #         del condition_results[condition]
-
-    #             # if "open_port" in condition_results and len(condition_results) > 1:
-    #             #     del condition_results["open_port"]
-    #             #     del conditions["open_port"]
-
-    #             condition_results["log"] = logs
-    #             return condition_results if condition_results else []
-    #         return []
-    #     if sub_step["method"] == "socket_icmp":
-    #         return response
-    #     return []
 
     def apply_extra_data(self, sub_step, response):
         if isinstance(response, list):

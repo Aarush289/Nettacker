@@ -129,6 +129,7 @@ def load_probes_from_yaml():
             Signatures=signatures,
         )
         _probes_by_name[name] = probe
+        
     print("probes loaded!")
         
 def build_probes_from_yaml():

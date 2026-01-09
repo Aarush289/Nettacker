@@ -20,6 +20,7 @@ def tcp_probe(host:str , port:int ,  payload:str="" ,timeout_ms=5000 , tcpwrappe
             payload = raw_to_bytes(payload)
         except Exception as e:
             print(f"failed to convert with {e}")
+    
     try:
         s.connect((host,port))
         peer_name = s.getpeername()
@@ -45,6 +46,10 @@ def tcp_probe(host:str , port:int ,  payload:str="" ,timeout_ms=5000 , tcpwrappe
                 chunks.append(data)
             except socket.timeout:
                 raw = b"".join(chunks)
+                try:
+                    s.close()
+                except:
+                    pass
                 return{
                     "tcp_wrapped" : tcp_wrap,
                     "ssl_flag":False,
@@ -56,6 +61,10 @@ def tcp_probe(host:str , port:int ,  payload:str="" ,timeout_ms=5000 , tcpwrappe
             tcp_wrap = True
        
         raw = b"".join(chunks)
+        try:
+            s.close()
+        except:
+            pass
         return {
             "tcp_wrapped" : tcp_wrap,
             "ssl_flag":False,
@@ -63,6 +72,10 @@ def tcp_probe(host:str , port:int ,  payload:str="" ,timeout_ms=5000 , tcpwrappe
             "raw_bytes": raw,
         }
     except socket.timeout :
+        try:
+            s.close()
+        except:
+            pass
         return{
             "tcp_wrapped" : tcp_wrap,
             "ssl_flag":False,
@@ -80,7 +93,7 @@ def tcp_probe(host:str , port:int ,  payload:str="" ,timeout_ms=5000 , tcpwrappe
 def tcp_probe_ssl(
     host,
     port,
-    payload: bytes = b"",
+    payload: str = "",
     timeout_ms=5000,
     tcpwrappedms=3000,
     server_hostname=None
@@ -149,17 +162,21 @@ def tcp_probe_ssl(
             pass
         raw = b"".join(chunks)
 
-        return {
-            "tcp_wrapped": tcp_wrap,
-            "ssl_flag": True,
-            "cipher": ssl_sock.cipher(),
-            "peer_name": ssl_sock.getpeername(),
-            "raw_bytes": raw,
-            "response": raw.decode(errors="ignore"),
-        }
-
-    except (OSError, ssl.SSLError):
+        try:
+            raw_sock.close()
+        except Exception:
+            pass
         return None
+    except (OSError, ssl.SSLError):
+        try:
+            raw_sock.close()
+        except Exception:
+            pass
+        if raw :
+            return None
+        else:
+            return None
+        
     finally:
             try:
                 raw_sock.close()
@@ -199,3 +216,4 @@ def udp_probe(host, port , payload:bytes="" , timeout_ms = 5000 , max_tries=1):
         except Exception:
             pass
         
+# ongoing - Working on implementing function to extract data from the packet and remove the headers for best matching as most regexes are sensitive 

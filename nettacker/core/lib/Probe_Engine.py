@@ -151,7 +151,7 @@ class ProbeEngine(BaseEngine):
         for p in self.probes:
             if p.protocol!=protocol and p.name!="NULL":
                 continue
-            if self.port in p.ports or p.name=="NULL":
+            if self.port in p.ports or p.name=="NULL" or self.port in p.sslports:
                 specific.append(p)
         
         return specific
@@ -168,18 +168,14 @@ class ProbeEngine(BaseEngine):
         return specific
     
     def Match_response(self , response , signature):
-        # print("hello!")
-        # print(f"response just after entered is {response}")
         if response == None:
             return {"status":False, "result":result()}
         
         if isinstance(response, str):
             response = response.encode("latin-1", errors="ignore")
         regex = signature.regex
-        # print(f"response is {response} and regex is {regex}")
         match = regex.search(response)
         if not match:
-            # print("nothing matched")
             return {"status":False, "result":result()}
         
         version_ = signature.version_details
@@ -226,8 +222,9 @@ class ProbeEngine(BaseEngine):
             
     def probe_sequentially(self):
         relevant_probes = self.get_probes_for_port()
-        final_version_info = None  # Renamed from 'result' to avoid class conflict
-        detected_service = None    # Renamed from 'service'
+        
+        final_version_info = None  
+        detected_service = None    
         ssl_flag = False
         raw_response = b''
         
@@ -237,12 +234,6 @@ class ProbeEngine(BaseEngine):
                 relevant_probes = self.get_probes_for_sslport()
                 ssl_flag = True
                     
-            # Skip probes that match a service we've already soft-matched
-            if detected_service is not None:
-                if self.check_match_service(probe.Signatures, detected_service):
-                    continue
-            
-            # Send the probe
             if self.protocol == "tcp":  
                 if not ssl_flag:
                     response = tcp_probe(self.host, self.port, probe.probe_string, probe.totalwaits, probe.tcpwrapperdms)
@@ -250,12 +241,17 @@ class ProbeEngine(BaseEngine):
                     response = tcp_probe_ssl(self.host, self.port, probe.probe_string, probe.totalwaits, probe.tcpwrapperdms)
             else:
                 response = udp_probe(self.host, self.port, probe.probe_string, probe.totalwaits)
+            
+            if response == None:
+                response = tcp_probe(self.host, self.port, probe.probe_string, probe.totalwaits, probe.tcpwrapperdms)
                 
+           
             if not response or response.get("raw_bytes") is None:
                 continue    
+            
 
             raw_response = response.get("raw_bytes")
-
+          
             # 1. Check Primary Signatures
             for signature in probe.Signatures:
                 matched_data = self.Match_response(raw_response, signature)
@@ -387,5 +383,4 @@ class ProbeEngine(BaseEngine):
         
         return None
 
-            
             
