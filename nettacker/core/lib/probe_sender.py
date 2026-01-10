@@ -215,5 +215,3 @@ def udp_probe(host, port , payload:bytes="" , timeout_ms = 5000 , max_tries=1):
             s.close()
         except Exception:
             pass
-        
-# ongoing - Working on implementing function to extract data from the packet and remove the headers for best matching as most regexes are sensitive 
