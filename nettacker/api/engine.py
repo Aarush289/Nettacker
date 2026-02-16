@@ -8,40 +8,44 @@ import time
 from threading import Thread
 from types import SimpleNamespace
 
-from flask import Flask, Response, abort, jsonify, make_response, render_template
+from flask import Flask, jsonify
 from flask import request as flask_request
+from flask import render_template, abort, Response, make_response
 from werkzeug.serving import WSGIRequestHandler
 from werkzeug.utils import secure_filename
 
 from nettacker import logger
 from nettacker.api.core import (
-    api_key_is_valid,
-    get_file,
     get_value,
+    get_file,
+    mime_types,
+    scan_methods,
+    profiles,
     graphs,
     languages_to_country,
-    mime_types,
-    profiles,
-    scan_methods,
+    api_key_is_valid,
 )
 from nettacker.api.helpers import structure
 from nettacker.config import Config
 from nettacker.core.app import Nettacker
+from nettacker.core.tasks import new_scan_task
 from nettacker.core.die import die_failure
 from nettacker.core.graph import create_compare_report
 from nettacker.core.messages import messages as _
-from nettacker.core.utils.common import generate_compare_filepath, now
+from nettacker.core.utils.common import now, generate_compare_filepath
 from nettacker.database.db import (
     create_connection,
     get_logs_by_scan_id,
+    select_reports,
     get_scan_result,
     last_host_logs,
-    logs_to_report_html,
     logs_to_report_json,
     search_logs,
-    select_reports,
+    logs_to_report_html,
 )
 from nettacker.database.models import Report
+from nettacker.core.utils.huey_config import huey
+
 
 # Monkey-patching the Server header to avoid exposing the actual version
 WSGIRequestHandler.version_string = lambda self: "API"
@@ -246,9 +250,14 @@ def new_scan():
     """
     api_key_is_valid(app, flask_request)
     form_values = dict(flask_request.form)
-    # variables for future reference
+    print("This is what we're recievening: {}".format(form_values))         # Trying to see if we've getting malformed data from web itself
+    
+    # form_values["targets"] = form_values["targets"]
+    form_values["thread_per_host"] = int(form_values["thread_per_host"])
+    form_values["retries"] = int(form_values["retries"])
+    form_values["timeout"] = int(form_values["timeout"])
+
     raw_report_path_filename = form_values.get("report_path_filename")
-    http_header = form_values.get("http_header")
     report_path_filename = sanitize_report_path_filename(raw_report_path_filename)
     if not report_path_filename:
         return jsonify(structure(status="error", msg="Invalid report filename")), 400
@@ -256,19 +265,10 @@ def new_scan():
     for key in nettacker_application_config:
         if key not in form_values:
             form_values[key] = nettacker_application_config[key]
-    # Handle HTTP headers
-    if http_header:
-        form_values["http_header"] = [
-            line.strip() for line in http_header.split("\n") if line.strip()
-        ]
-    # Handle service discovery
-    form_values["skip_service_discovery"] = form_values.get("skip_service_discovery", "") == "true"
-    nettacker_app = Nettacker(api_arguments=SimpleNamespace(**form_values))
-    app.config["OWASP_NETTACKER_CONFIG"]["options"] = nettacker_app.arguments
-    thread = Thread(target=nettacker_app.run)
-    thread.start()
 
-    return jsonify(vars(nettacker_app.arguments)), 200
+    task_result = new_scan_task(form_values)
+
+    return jsonify(task_result), 200
 
 
 @app.route("/compare/scans", methods=["POST"])
