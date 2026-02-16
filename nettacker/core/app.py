@@ -1,7 +1,6 @@
 import copy
 import json
 import os
-import shutil
 import socket
 import sys
 from threading import Thread
@@ -12,27 +11,29 @@ from nettacker import logger
 from nettacker.config import Config, version_info
 from nettacker.core.arg_parser import ArgParser
 from nettacker.core.die import die_failure
-from nettacker.core.graph import create_compare_report, create_report
+from nettacker.core.graph import create_report, create_compare_report
 from nettacker.core.ip import (
-    generate_ip_range,
     get_ip_range,
-    is_ipv4_cidr,
-    is_ipv4_range,
-    is_ipv6_cidr,
-    is_ipv6_range,
+    generate_ip_range,
     is_single_ipv4,
+    is_ipv4_range,
+    is_ipv4_cidr,
     is_single_ipv6,
+    is_ipv6_range,
+    is_ipv6_cidr,
 )
 from nettacker.core.messages import messages as _
 from nettacker.core.module import Module
 from nettacker.core.socks_proxy import set_socks_proxy
 from nettacker.core.utils import common as common_utils
-from nettacker.core.utils.common import wait_for_threads_to_finish
+from nettacker.core.utils.common import wait_for_threads_to_finish, select_maximum_cpu_core
 from nettacker.database.db import find_events, remove_old_logs
 from nettacker.database.mysql import mysql_create_database, mysql_create_tables
 from nettacker.database.postgresql import postgres_create_database
 from nettacker.database.sqlite import sqlite_create_tables
 from nettacker.logger import TerminalCodes
+
+from nettacker.core.tasks import scan_target_task
 
 log = logger.get_logger()
 
@@ -66,7 +67,7 @@ class Nettacker(ArgParser):
         log.reset_color()
 
     def check_dependencies(self):
-        if sys.platform not in {"darwin", "freebsd13", "freebsd14", "freebsd15", "linux"}:
+        if sys.platform not in {"darwin", "linux"}:
             die_failure(_("error_platform"))
 
         try:
@@ -77,13 +78,8 @@ class Nettacker(ArgParser):
 
         if Config.db.engine == "sqlite":
             try:
-                if not Config.path.new_database_file.exists():
-                    Config.path.new_database_file.parent.mkdir(parents=True, exist_ok=True)
-                    if Config.path.old_database_file.exists():
-                        shutil.copy(Config.path.old_database_file, Config.path.new_database_file)
-                        log.warn("Database files migrated from .data to .nettacker ...")
-                    else:
-                        sqlite_create_tables()
+                if not Config.path.database_file.exists():
+                    sqlite_create_tables()
             except PermissionError:
                 die_failure("cannot access the directory {0}".format(Config.path.home_dir))
         elif Config.db.engine == "mysql":
@@ -114,6 +110,8 @@ class Nettacker(ArgParser):
         targets = []
         base_path = ""
         for target in self.arguments.targets:
+            print(f"This is everything inside expand_targets: {self.arguments} \n")
+            print(f"This is the target inside app.py: {target}")        # Is it all fine till here? No!
             if "://" in target:
                 try:
                     if not target.split("://")[1].split("/")[1]:
@@ -158,7 +156,9 @@ class Nettacker(ArgParser):
 
             for target in copy.deepcopy(self.arguments.targets):
                 for row in find_events(target, "subdomain_scan", scan_id):
-                    for sub_domain in json.loads(row)["response"]["conditions_results"]["content"]:
+                    for sub_domain in json.loads(row.json_event)["response"]["conditions_results"][
+                        "content"
+                    ]:
                         if sub_domain not in self.arguments.targets:
                             self.arguments.targets.append(sub_domain)
         # icmp_scan
@@ -209,7 +209,10 @@ class Nettacker(ArgParser):
         log.info(_("regrouping_targets"))
         # find total number of targets + types + expand (subdomain, IPRanges, etc)
         # optimize CPU usage
+        print(f"These are all the arguments: {self.arguments} \n")
+        print(f"This is before passing it to expand_targets: {self.arguments.targets} \n")         # If its fine here, then WHERE THE FUCK is it splitting
         self.arguments.targets = self.expand_targets(scan_id)
+        print(f"This is what expand targets returns: {self.arguments.targets} \n")
         if not self.arguments.targets:
             log.info(_("no_live_service_found"))
             return True
@@ -222,6 +225,9 @@ class Nettacker(ArgParser):
         return exit_code
 
     def start_scan(self, scan_id):
+        print(f"These are arguments: {self.arguments}")
+        if not isinstance(self.arguments.set_hardware_usage, int):
+            self.arguments.set_hardware_usage = select_maximum_cpu_core(self.arguments.set_hardware_usage)
         target_groups = common_utils.generate_target_groups(
             self.arguments.targets, self.arguments.set_hardware_usage
         )
@@ -243,49 +249,11 @@ class Nettacker(ArgParser):
             target_groups.remove([])
 
         log.info(_("start_multi_process").format(len(self.arguments.targets), len(target_groups)))
-        active_processes = []
-        for t_id, target_groups in enumerate(target_groups):
-            process = multiprocess.Process(
-                target=self.scan_target_group, args=(target_groups, scan_id, t_id)
-            )
-            process.start()
-            active_processes.append(process)
+        
+        for t_id, target_group in enumerate(target_groups):
+             self.scan_target_group(target_group, scan_id, t_id)
 
-        return wait_for_threads_to_finish(active_processes, sub_process=True)
-
-    def scan_target(
-        self,
-        target,
-        module_name,
-        scan_id,
-        process_number,
-        thread_number,
-        total_number_threads,
-    ):
-        options = copy.deepcopy(self.arguments)
-
-        socket.socket, socket.getaddrinfo = set_socks_proxy(options.socks_proxy)
-        module = Module(
-            module_name,
-            options,
-            target,
-            scan_id,
-            process_number,
-            thread_number,
-            total_number_threads,
-        )
-        module.load()
-        module.generate_loops()
-        module.sort_loops()
-        module.start()
-
-        log.verbose_event_info(
-            _("finished_parallel_module_scan").format(
-                process_number, module_name, target, thread_number, total_number_threads
-            )
-        )
-
-        return os.EX_OK
+        return True
 
     def scan_target_group(self, targets, scan_id, process_number):
         active_threads = []
@@ -295,19 +263,15 @@ class Nettacker(ArgParser):
 
         for target in targets:
             for module_name in self.arguments.selected_modules:
-                thread = Thread(
-                    target=self.scan_target,
-                    args=(
-                        target,
-                        module_name,
-                        scan_id,
-                        process_number,
-                        total_number_of_modules_counter,
-                        total_number_of_modules,
-                    ),
-                )
-                thread.name = f"{target} -> {module_name}"
-                thread.start()
+                scan_target_task(
+                     target = target,
+                     arguments = copy.deepcopy(self.arguments).__dict__,
+                     module_name = module_name,
+                     scan_id = scan_id,
+                     process_number = process_number,
+                     thread_number = total_number_of_modules_counter,
+                     total_number_threads = total_number_of_modules
+                 )
                 log.verbose_event_info(
                     _("start_parallel_module_scan").format(
                         process_number,
@@ -318,10 +282,4 @@ class Nettacker(ArgParser):
                     )
                 )
                 total_number_of_modules_counter += 1
-                active_threads.append(thread)
-                if not wait_for_threads_to_finish(
-                    active_threads, self.arguments.parallel_module_scan, True
-                ):
-                    return False
-        wait_for_threads_to_finish(active_threads, maximum=None, terminable=True)
         return True
