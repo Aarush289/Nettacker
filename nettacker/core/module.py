@@ -78,7 +78,7 @@ class Module:
         if not self.skip_service_discovery and self.module_name not in self.ignored_core_modules:
             services = {}
             for service in find_events(self.target, "port_scan", self.scan_id):
-                service_event = json.loads(service)
+                service_event = json.loads(service.json_event)
                 port = service_event["port"]
                 protocols = service_event["response"]["conditions_results"].keys()
                 for protocol in protocols:
@@ -109,34 +109,29 @@ class Module:
                 index_payload += 1
 
     def generate_loops(self):
-        if self.module_inputs["excluded_ports"]:
-            excluded_port_set = set(self.module_inputs["excluded_ports"])
-            if self.module_content and "ports" in self.module_content["payloads"][0]["steps"][0]:
-                all_ports = self.module_content["payloads"][0]["steps"][0]["ports"]
-                all_ports[:] = [port for port in all_ports if port not in excluded_port_set]
-
         self.module_content["payloads"] = expand_module_steps(self.module_content["payloads"])
 
     def sort_loops(self):
+        steps = []
         for index in range(len(self.module_content["payloads"])):
-            steps_without_dependencies = []
-            steps_with_temp_dependencies = []
-            steps_with_normal_dependencies = []
+            for step in copy.deepcopy(self.module_content["payloads"][index]["steps"]):
+                if "dependent_on_temp_event" not in step[0]["response"]:
+                    steps.append(step)
 
             for step in copy.deepcopy(self.module_content["payloads"][index]["steps"]):
-                resp = step[0]["response"]
-                if "dependent_on_temp_event" not in resp:
-                    steps_without_dependencies.append(step)
-                elif "save_to_temp_events_only" in resp:
-                    steps_with_temp_dependencies.append(step)
-                else:
-                    steps_with_normal_dependencies.append(step)
+                if (
+                    "dependent_on_temp_event" in step[0]["response"]
+                    and "save_to_temp_events_only" in step[0]["response"]
+                ):
+                    steps.append(step)
 
-            self.module_content["payloads"][index]["steps"] = (
-                steps_without_dependencies
-                + steps_with_temp_dependencies
-                + steps_with_normal_dependencies
-            )
+            for step in copy.deepcopy(self.module_content["payloads"][index]["steps"]):
+                if (
+                    "dependent_on_temp_event" in step[0]["response"]
+                    and "save_to_temp_events_only" not in step[0]["response"]
+                ):
+                    steps.append(step)
+            self.module_content["payloads"][index]["steps"] = steps
 
     def start(self):
         active_threads = []
@@ -150,50 +145,35 @@ class Module:
             for step in payload["steps"]:
                 total_number_of_requests += len(step)
 
+        from nettacker.core.tasks import run_engine_task
+        
         request_number_counter = 0
         for payload in self.module_content["payloads"]:
             library = payload["library"]
-            engine = getattr(
-                importlib.import_module(f"nettacker.core.lib.{library.lower()}"),
-                f"{library.capitalize()}Engine",
-            )()
+
             for step in payload["steps"]:
                 for sub_step in step:
-                    thread = Thread(
-                        target=engine.run,
-                        args=(
-                            sub_step,
-                            self.module_name,
-                            self.target,
-                            self.scan_id,
-                            self.module_inputs,
-                            self.process_number,
-                            self.module_thread_number,
-                            self.total_module_thread_number,
-                            request_number_counter,
-                            total_number_of_requests,
-                        ),
+                    run_engine_task(
+                         library = library,
+                         sub_step=sub_step,
+                         module_name=self.module_name,
+                         target=self.target,
+                         scan_id=self.scan_id,
+                         module_inputs=self.module_inputs,
+                         process_number=self.process_number,
+                         module_thread_number=self.module_thread_number,
+                         total_module_thread_number=self.total_module_thread_number,
+                         request_number_counter=request_number_counter,
+                         total_number_of_requests=total_number_of_requests,
                     )
-                    thread.name = f"{self.target} -> {self.module_name} -> {sub_step}"
                     request_number_counter += 1
                     log.verbose_event_info(
-                        _("sending_module_request").format(
+                        _("sending_to_queue").format(
                             self.process_number,
                             self.module_name,
                             self.target,
-                            self.module_thread_number,
-                            self.total_module_thread_number,
                             request_number_counter,
                             total_number_of_requests,
                         )
                     )
-                    thread.start()
                     time.sleep(self.module_inputs["time_sleep_between_requests"])
-                    active_threads.append(thread)
-                    wait_for_threads_to_finish(
-                        active_threads,
-                        maximum=self.module_inputs["thread_per_host"],
-                        terminable=True,
-                    )
-
-        wait_for_threads_to_finish(active_threads, maximum=None, terminable=True)
