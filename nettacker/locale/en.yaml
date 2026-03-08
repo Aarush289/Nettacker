@@ -141,3 +141,6 @@ read_report_fail: Failed to read report file {0}
 search_results_end: No more search results
 database_error: Database error!
 error_exclude_all: "Cannot exclude all modules. Please specify individual module names to exclude using -x."
+module_flow: "Define module dependency graph. Example: B->A,C->B"
+invalid_module_flow: "Invalid module flow syntax. Use format B->A,C->B"
+cycle_detection_error: "Circular dependency in module-flow is invalid"

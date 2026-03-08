@@ -215,6 +215,13 @@ class ArgParser(ArgumentParser):
         # Method Options
         method_options = self.add_argument_group(_("Method"), _("scan_method_options"))
         method_options.add_argument(
+            "--module-flow",
+            action="store",
+            dest="module_flow",
+            default=Config.settings.module_flow,
+            help=_("module_flow"),
+        )
+        method_options.add_argument(
             "-m",
             "--modules",
             action="store",
@@ -623,6 +630,48 @@ class ArgParser(ArgumentParser):
             for module_name in options.selected_modules:
                 if module_name not in self.modules:
                     die_failure(_("scan_module_not_found").format(module_name))
+                    
+        # validate module flow
+        if options.module_flow:
+            flow_rules = options.module_flow.split(",")
+
+            for rule in flow_rules:
+                if "->" not in rule:
+                    die_failure(_("invalid_module_flow"))
+                parent, child = rule.split("->")
+                if child not in options.selected_modules:
+                    die_failure(f"Module '{child}' in module-flow not selected.")
+                if parent not in options.selected_modules:
+                    die_failure(f"Module '{parent}' in module-flow not selected.")
+            
+            # detect cycles in input 
+            graph = {m: [] for m in options.selected_modules}
+            for rule in options.module_flow.split(","):
+                parent, child = rule.split("->")
+                graph[child].append(parent)
+                
+            visited = set()
+            stack = set()
+            
+            def dfs(node):
+                if node in stack:
+                    die_failure(_("cycle_detection_error"))
+                if node in visited:
+                    return
+                stack.add(node)
+                for parent in graph[node]:
+                    dfs(parent)
+                stack.remove(node)
+                visited.add(node)
+                
+            for node in graph:
+                dfs(node)
+
+            options.module_flow_graph = graph
+        else:
+            options.module_flow_graph = None
+            
+            
         if options.profiles:
             if not options.selected_modules:
                 options.selected_modules = []

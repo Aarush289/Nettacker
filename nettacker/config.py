@@ -189,6 +189,7 @@ class DefaultSettings(ConfigBase):
     verbose_event = False
     verbose_mode = False
     scan_compare_id = None
+    module_flow = None
     compare_report_path_filename = ""
 
 
