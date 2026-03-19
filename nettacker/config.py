@@ -61,7 +61,7 @@ sensitive_headers = {
 
 class ApiConfig(ConfigBase):
     """OWASP Nettacker API Default Configuration"""
-
+    api_keys_file = CWD / ".nettacker/data/api_keys.json"
     api_access_log = str(CWD / ".nettacker/data/nettacker.log")
     api_access_key = generate_random_token(32)
     api_client_whitelisted_ips = []  # disabled - to enable please put an array with list of ips/cidr/ranges

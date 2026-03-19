@@ -24,6 +24,7 @@ from nettacker.api.core import (
     profiles,
     scan_methods,
 )
+from nettacker.api.api_keys import api_key_manager
 from nettacker.api.helpers import structure
 from nettacker.config import Config
 from nettacker.core.app import Nettacker
@@ -112,6 +113,47 @@ def error_404(error):
     """
     return jsonify(structure(status="error", msg=_("not_found"))), 404
 
+@app.route("/api/external-api-keys", methods=["POST"])
+def set_external_api_key():
+    """
+    Set external API key (e.g., Shodan, VirusTotal)
+    """
+    api_key_is_valid(app, flask_request)
+
+    try:
+        data = flask_request.get_json(force=True)
+    except Exception:
+        abort(400, "Invalid JSON")
+
+    service = data.get("service")
+    value = data.get("value")
+
+    if not service or not value:
+        abort(400, "Missing service or value")
+
+    api_key_manager.set(service, value)
+
+    return jsonify(structure(status="success", msg=f"{service} key stored")), 200
+
+@app.route("/api/external-api-keys", methods=["GET"])
+def get_external_api_keys():
+    """
+    Get all stored external API keys
+    """
+    api_key_is_valid(app, flask_request)
+
+    return jsonify(api_key_manager.keys), 200
+
+@app.route("/api/external-api-keys/<service>", methods=["DELETE"])
+def delete_external_api_key(service):
+    """
+    Delete external API key
+    """
+    api_key_is_valid(app, flask_request)
+
+    api_key_manager.delete(service)
+
+    return jsonify(structure(status="success", msg=f"{service} key deleted")), 200
 
 @app.before_request
 def limit_remote_addr():
