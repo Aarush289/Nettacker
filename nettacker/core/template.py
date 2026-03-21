@@ -15,6 +15,7 @@ class TemplateLoader:
         if isinstance(module_content, dict):
             for key in copy.deepcopy(module_content):
                 if key in module_inputs:
+                    print("OVERRIDING:", key, "WITH:", module_inputs[key])
                     if module_inputs[key]:
                         module_content[key] = module_inputs[key]
                 elif isinstance(module_content[key], (dict, list)):
@@ -24,7 +25,6 @@ class TemplateLoader:
             for key in copy.deepcopy(module_content):
                 module_content[array_index] = TemplateLoader.parse(key, module_inputs)
                 array_index += 1
-
         return module_content
 
     def open(self):

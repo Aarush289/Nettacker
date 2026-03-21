@@ -7,7 +7,9 @@ import re
 import time
 
 import aiohttp
+import pprint
 import uvloop
+from nettacker.lib.extractors.dispatcher import run_extractors
 
 from nettacker.core.lib.base import BaseEngine
 from nettacker.core.utils.common import (
@@ -43,10 +45,12 @@ async def send_request(request_options, method):
 
 
 def response_conditions_matched(sub_step, response):
+    print(f"response is {response}")
     if not response:
         return {}
     condition_type = sub_step["response"]["condition_type"]
     conditions = sub_step["response"]["conditions"]
+   # print(f"conditions originally are {conditions}")
     condition_results = {}
     for condition in conditions:
         if condition in ["reason", "status_code", "content", "url"]:
@@ -90,6 +94,27 @@ def response_conditions_matched(sub_step, response):
                 )
             else:
                 condition_results["responsetime"] = []
+    
+    print(f"conditions is {conditions}")
+    logs = []
+    if "extractors" in conditions:
+        extractors = conditions["extractors"]
+        if isinstance(extractors , dict):
+            extractors = list(extractors.values())
+        print("Running extractors:", conditions["extractors"])
+        extracted = run_extractors(
+            extractors, response
+        )
+        for key, values in extracted.items():
+            if not values:
+                continue
+
+            if isinstance(values, list):
+                value_str = ", ".join(map(str, values))
+            else:
+                value_str = str(values)
+            logs.append(f"{key}: {value_str}")
+        
     if condition_type.lower() == "or":
         # if one of the values are matched, it will be a string or float object in the array
         # we count False in the array and if it's not all []; then we know one of the conditions
@@ -111,11 +136,16 @@ def response_conditions_matched(sub_step, response):
             )
         ):
             if sub_step["response"].get("log", False):
-                condition_results["log"] = sub_step["response"]["log"]
-                if "response_dependent" in condition_results["log"]:
+                logs.append(f"{sub_step["response"]["log"]}")
+                if "response_dependent" in sub_step["response"]["log"]:
                     condition_results["log"] = replace_dependent_response(
                         condition_results["log"], condition_results
                     )
+            
+            condition_results["log"] = str(logs)
+            print(f"final logs are {condition_results["log"]}")
+            pprint.pprint(condition_results)
+            
             return condition_results
         else:
             return {}
@@ -149,6 +179,7 @@ class HttpEngine(BaseEngine):
         request_number_counter,
         total_number_of_requests,
     ):
+        print(f"substep at entry is {sub_step}")
         if options["http_header"] is not None:
             for header in options["http_header"]:
                 key = get_http_header_key(header).strip()

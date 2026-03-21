@@ -1,0 +1,89 @@
+info:
+  name: shodan_host_lookup
+  author: Aarush
+  severity: info
+  description: Query Shodan API to gather host information for a target IP
+  reference:
+    - https://developer.shodan.io/api
+  profiles:
+    - scan
+    - osint
+    - shodan
+
+payloads:
+  - library: http
+    steps:
+      - method: get
+        timeout: 10
+        headers:
+          User-Agent: "{user_agent}"
+        allow_redirects: false
+        ssl: true
+        url:
+          nettacker_fuzzer:
+            input_format: "{{schema}}://api.shodan.io/shodan/host/{target}?key=xxxxxxxxx"
+            prefix: ""
+            suffix: ""
+            interceptors:
+            data:
+              schema:
+                - "https"
+        response:
+          condition_type: or
+          conditions:
+            status_code:
+              regex: "^200$"
+              reverse: false
+            content:
+              regex: "\"ip_str\":"
+              reverse: false
+            extractors:
+              ip:
+                type: json
+                name: ip
+                json:
+                  - .ip_str
+
+              ports:
+                type: json
+                name: ports
+                json:
+                  - .ports[]
+
+              org:
+                type: json
+                name: org
+                json:
+                  - .org
+
+              country:
+                type: json
+                name: country
+                json:
+                  - .country_name
+
+              services:
+                type: json
+                name: services
+                json:
+                  - .data[]?.port
+
+              transports:
+                type: json
+                name: transports
+                json:
+                  - .data[]?.transport
+
+              hostnames:
+                type: json
+                name: hostnames
+                json:
+                  - .hostnames[]
+
+              domains:
+                type: json
+                name: domains
+                json:
+                  - .domains[]
+          log: "Shodan data found for {target}"
+          
