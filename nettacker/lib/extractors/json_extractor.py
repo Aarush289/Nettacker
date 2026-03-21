@@ -6,7 +6,6 @@ class JSONExtractor(BaseExtractor):
         super().__init__(config)
         queries = config.get("json", [])
 
-        # 🔥 normalize to list
         if isinstance(queries, str):
             queries = [queries]
 
