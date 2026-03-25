@@ -1088,3 +1088,37 @@ function filter_large_content(content, filter_rate){
     }
   });
 });
+
+$(document).ready(function () {
+
+  // PROFILE SEARCH (SAFE)
+  $("#profileSearch").on("keyup", function () {
+    let val = $(this).val().toLowerCase();
+
+    $("#profiles *").each(function () {
+      let text = $(this).text().toLowerCase();
+
+      if (text.includes(val)) {
+        $(this).show();
+      } else {
+        $(this).hide();
+      }
+    });
+  });
+
+  // SCAN SEARCH (SAFE)
+  $("#scanSearch").on("keyup", function () {
+    let val = $(this).val().toLowerCase();
+
+    $("#selected_modules *").each(function () {
+      let text = $(this).text().toLowerCase();
+
+      if (text.includes(val)) {
+        $(this).show();
+      } else {
+        $(this).hide();
+      }
+    });
+  });
+
+});

@@ -149,187 +149,188 @@
             </li>
         </ul>
     </div>
-    <div id="new_scan" class="hidden">
+    <div id="new_scan">
         <h2>Submit a new scan</h2>
-        <ul class="nav nav-tabs">
-            <li id="basic" class="active"><a data-toggle="tab">Basic</a></li>
-            <li><a id="advance" data-toggle="tab">Advanced</a></li>
+        
+        <ul class="nav nav-tabs" role="tablist">
+            <li class="active"><a href="#basic_options" data-toggle="tab">Basic</a></li>
+            <li><a href="#advance_options" data-toggle="tab">Advanced</a></li>
         </ul>
+
         <form>
-            <div id="basic_options">
-                <h3>Targets</h3>
-                <div class="input-group col-xs-4" id="targets-entry">
-                    <span class="input-group-addon"><i class="fa fa-space-shuttle"></i></span>
-                    <input id="targets" type="text" class="form-control" data-role="tagsinput" placeholder="Add new target" >
-                </div>
-                <div class="form-group" style="margin-top: 10px;">
-                    <label>
-                        <input id="skip_service_discovery" type="checkbox">
-                        <a class="label label-warning">Skip service discovery</a>
-                    </label>
-                </div>
-                <div id="scan_options_combined">
-                <h3>Profiles</h3>
-                <div class="form-group">
-                    <div id="profiles" class="checkbox text-justify">
-            <label><input id="all_profiles" type="checkbox" class="check check-all-profiles"><a
-                class="label label-info">Select all profiles</a></label>&nbsp;&nbsp;&nbsp;&nbsp;
-            {% autoescape off %}{{profile}}{% endautoescape %}
+            <div class="tab-content" style="margin-top: 20px;">
+                
+                <div id="basic_options" class="tab-pane active">
+                    <h3>Targets</h3>
+                    <div class="input-group col-xs-4" id="targets-entry">
+                        <span class="input-group-addon"><i class="fa fa-space-shuttle"></i></span>
+                        <input id="targets" type="text" class="form-control" data-role="tagsinput" placeholder="Add new target">
                     </div>
-                </div>
-                <h3>Scan Methods</h3>
-                <div class="form-group">
-                    <div id="selected_modules" class="checkbox text-justify">
-                        <label><input id="all" type="checkbox" class="checkbox check-all-scans" ><a
-                                class="label label-info">Select all</a></label>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                        {% autoescape off %}{{selected_modules}}{% endautoescape %}
+                    
+                    <div class="form-group" style="margin-top: 10px;">
+                        <label>
+                            <input id="skip_service_discovery" type="checkbox">
+                            <a class="label label-warning">Skip service discovery</a>
+                        </label>
                     </div>
-                </div>
-                </div>
-                <h3>Graph</h3>
-                <div class="form-group">
-                    <div id="graph_name" class="radio text-justify">
-                        {% autoescape off %}{{graphs}}{% endautoescape %}
+
+                    <div id="scan_options_combined">
+                        <h3>Profiles</h3>
+                        <input type="text" id="profileSearch" class="form-control" placeholder="Search profiles..." style="margin-bottom:10px;">
+                        <div class="form-group">
+                            <div id="profiles" class="checkbox text-justify">
+                                <label>
+                                    <input id="all_profiles" type="checkbox" class="check check-all-profiles">
+                                    <a class="label label-info">Select all profiles</a>
+                                </label>
+                                {% autoescape off %}{{profile}}{% endautoescape %}
+                            </div>
+                        </div>
+
+                        <h3>Scan Methods</h3>
+                        <input type="text" id="scanSearch" class="form-control" placeholder="Search scan methods..." style="margin-bottom:10px;">
+                        <div class="form-group">
+                            <div id="selected_modules" class="checkbox text-justify">
+                                <label>
+                                    <input id="all" type="checkbox" class="checkbox check-all-scans">
+                                    <a class="label label-info">Select all</a>
+                                </label>
+                                {% autoescape off %}{{selected_modules}}{% endautoescape %}
+                            </div>
+                        </div>
+                        
+                        <h3>Graph</h3>
+                        <div class="form-group">
+                            <div id="graph_name" class="radio text-justify">
+                                {% autoescape off %}{{graphs}}{% endautoescape %}
+                            </div>
+                        </div>
+
+                        <h3>Reporting Language</h3>
+                        <div class="form-group" id="languages-entry">
+                            <label for="sel2">Select Language:</label>
+                            <select id="languages" class="selectpicker" data-width="fit">
+                                {% autoescape off %}{{languages}}{% endautoescape %}
+                            </select>
+                        </div>
+
+                        <h3>Output</h3>
+                        <div class="input-group col-xs-5">
+                            <span class="input-group-addon">filename</span>
+                            <input id="output_file" type="text" class="form-control" placeholder="Additional Info"
+                                value="{% autoescape off %}{{filename}}{% endautoescape %}">
+                        </div>
                     </div>
-                </div>
-                <h3>Reporting Language</h3>
-                <div class="form-group" id="languages-entry">
-                    <label for="sel2">Select Language:</label>
-                    <select id="languages" class="selectpicker" data-width="fit">
-                        {% autoescape off %}{{languages}}{% endautoescape %}
-                    </select>
                 </div>
 
+                <div id="advance_options" class="tab-pane">
+                    <h3>Flags</h3>
+                    <div id="scan_options" class="form-group">
+                        <div class="checkbox text-justify">
+                            <label><input id="scan_ip_range" type="checkbox"><a class="label label-success">scan_ip_range</a></label>
+                            <label><input id="scan_subdomains" type="checkbox"><a class="label label-success">scan_subdomains</a></label>
+                            <label><input id="ping_before_scan" type="checkbox"><a class="label label-success">ping_before_scan</a></label>
+                        </div>
+                    </div>
 
-                <h3>Output</h3>
-                <div class="input-group col-xs-5">
-                    <span class="input-group-addon">filename</span>
-                    <input id="output_file" type="text" class="form-control" placeholder="Additional Info"
-                           value="{% autoescape off %}{{filename}}{% endautoescape %}">
+                    <h3>Engine Options</h3>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <span class="input-group-addon">Thread numbers</span>
+                                <input id="thread_per_host" type="text" class="form-control" placeholder="100" value="100">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <span class="input-group-addon">Host thread number</span>
+                                <input id="host_thread_num" type="text" class="form-control" placeholder="30" value="30">
+                            </div>
+                        </div>
+                    </div>
+                    <br>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <span class="input-group-addon">Retries</span>
+                                <input id="retries" type="text" class="form-control" placeholder="3" value="3">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <span class="input-group-addon">Time sleep</span>
+                                <input id="time_sleep_between_requests" type="text" class="form-control" placeholder="0" value="0">
+                            </div>
+                        </div>
+                    </div>
+                    <br>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <span class="input-group-addon">Timeout</span>
+                                <input id="timeout" type="text" class="form-control" placeholder="3" value="3">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <span class="input-group-addon">Verbose level</span>
+                                <input id="verbose_mode" type="text" class="form-control" placeholder="0" value="0">
+                            </div>
+                        </div>
+                    </div>
+                    <br>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h3>Ports</h3>
+                            <div class="input-group col-xs-12">
+                                <span class="input-group-addon">Ports</span>
+                                <input id="ports" type="text" class="form-control" placeholder="1-1000 - leave it empty to use default ports">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h3>Socks Proxy</h3>
+                            <div class="input-group col-xs-12">
+                                <span class="input-group-addon">Socks</span>
+                                <input id="socks_proxy" type="text" class="form-control" placeholder="socks5://127.0.0.1:9050">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h3>Exclude Ports</h3>
+                            <div class="input-group col-xs-12">
+                                <span class="input-group-addon">Exclude</span>
+                                <input id="exclude_ports" type="text" class="form-control" placeholder="e.g., 80,443,8080">
+                            </div>
+                        </div>  
+                        <div class="col-md-6">
+                            <h3>HTTP Headers</h3>
+                            <div class="input-group col-xs-12">
+                                <span class="input-group-addon">Headers</span>
+                                <textarea class="form-control" rows="3" id="http_headers" placeholder="Header: Value&#10;Another-Header: Value"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <br>
+
+                    <div class="row">
+                        <div class="form-group col-md-6">
+                            <h3>Usernames</h3>
+                            <textarea class="input-mini form-control" rows="8" cols="50" id="usernames" data-role="tagsinput" placeholder="separate with commas or new line"></textarea>
+                        </div>
+                        <div class="form-group col-md-6">
+                            <h3>Passwords</h3>
+                            <textarea class="form-control" rows="8" cols="50" id="passwords" placeholder="separate with commas or new line"></textarea>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div id="advance_options" class="hidden">
-                <h3>Flags</h3>
-                <div id="scan_options" class="form-group">
-                    <div class="checkbox text-justify">
-                        <label><input id="scan_ip_range" type="checkbox"><a
-                                class="label label-success">scan_ip_range</a></label>
-                        <label><input id="scan_subdomains" type="checkbox"><a
-                                class="label label-success">scan_subdomains</a></label>
-                        <label><input id="ping_before_scan" type="checkbox"><a
-                                class="label label-success">ping_before_scan</a></label>
-                    </div>
-                </div>
-                <h3>Engine Options</h3>
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="input-group">
-                            <span class="input-group-addon">Thread numbers</span>
-                            <input id="thread_per_host" type="text" class="form-control" placeholder="100"
-                                   value="100">
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="input-group">
-                            <span class="input-group-addon">Host thread number</span>
-                            <input id="thread_per_host" type="text" class="form-control" placeholder="30"
-                                   value="30">
-                        </div>
-                    </div>
-                </div>
-                <br>
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="input-group">
-                            <span class="input-group-addon">Retries</span>
-                            <input id="retries" type="text" class="form-control" placeholder="3"
-                                   value="3">
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="input-group">
-                            <span class="input-group-addon">Time sleep</span>
-                            <input id="time_sleep_between_requests" type="text" class="form-control" placeholder="0"
-                                   value="0">
-                        </div>
-                    </div>
-                </div>
-                <br>
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="input-group">
-                            <span class="input-group-addon">Time sleep</span>
-                            <input id="timeout" type="text" class="form-control" placeholder="3"
-                                   value="3">
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="input-group">
-                            <span class="input-group-addon">Verbose level</span>
-                            <input id="verbose_mode" type="text" class="form-control" placeholder="0"
-                                   value="0">
-                        </div>
-                    </div>
-                </div>
-                <br>
 
-                <div class="row">
-                    <div class="col-md-6">
-                        <h3>Ports</h3>
-                        <div class="input-group col-xs-12">
-                            <span class="input-group-addon">Ports</span>
-                            <input id="ports" type="text" class="form-control"
-                                   placeholder="1-1000 - leave it empty to use default ports">
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <h3>Socks Proxy</h3>
-                        <div class="input-group col-xs-12">
-                            <span class="input-group-addon">Socks</span>
-                            <input id="socks_proxy" type="text" class="form-control"
-                                   placeholder="socks5://127.0.0.1:9050">
-                        </div>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-6">
-                        <h3>Exclude Ports</h3>
-                        <div class="input-group col-xs-12">
-                            <span class="input-group-addon">Exclude</span>
-                            <input id="exclude_ports" type="text" class="form-control"
-                                   placeholder="e.g., 80,443,8080">
-                        </div>
-                    </div>  
-
-                    <!-- HTTP Headers -->
-                    <div class="col-md-6">
-                        <h3>HTTP Headers</h3>
-                        <div class="input-group col-xs-12">
-                            <span class="input-group-addon">Headers</span>
-                            <textarea class="form-control" rows="3" id="http_headers"
-                                      placeholder="Header: Value&#10;Another-Header: Value"></textarea>
-                        </div>
-                    </div>
-                </div>
-                <br>
-
-                <div class="form-group col-md-6">
-                    <h3>Usernames</h3>
-                    <textarea class="input-mini form-control" rows="8" cols="50" id="usernames"
-                              data-role="tagsinput" placeholder="separate with commas or new line">
-                    </textarea>
-                </div>
-                <div class="form-group col-md-6">
-                    <h3>Passwords</h3>
-                    <textarea class="form-control" rows="8" cols="50" id="passwords"
-                               placeholder="separate with commas or new line"></textarea>
-                </div>
-                <br>
-            </div>
             <br>
-            <ul id="submit_new_scan" class="btn btn-primary" action="javascript:submit_new_scan()">
+            <button type="button" id="submit_new_scan_btn" class="btn btn-primary" onclick="submit_new_scan()">
                 Submit
-            </ul>
+            </button>
         </form>
         <br><br>
         <div id="success_request" class="alert alert-success hidden text-justify">
