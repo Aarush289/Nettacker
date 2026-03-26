@@ -11,7 +11,7 @@ from nettacker.core.messages import messages as _
 from nettacker.core.template import TemplateLoader
 from nettacker.core.utils.common import expand_module_steps, wait_for_threads_to_finish
 from nettacker.database.db import find_events
-
+from nettacker.core.task import run_engine_task
 log = logger.get_logger()
 
 
@@ -153,31 +153,24 @@ class Module:
         request_number_counter = 0
         for payload in self.module_content["payloads"]:
             library = payload["library"]
-            engine = getattr(
-                importlib.import_module(f"nettacker.core.lib.{library.lower()}"),
-                f"{library.capitalize()}Engine",
-            )()
             for step in payload["steps"]:
                 for sub_step in step:
-                    thread = Thread(
-                        target=engine.run,
-                        args=(
-                            sub_step,
-                            self.module_name,
-                            self.target,
-                            self.scan_id,
-                            self.module_inputs,
-                            self.process_number,
-                            self.module_thread_number,
-                            self.total_module_thread_number,
-                            request_number_counter,
-                            total_number_of_requests,
-                        ),
+                    run_engine_task(
+                        library = library,
+                        sub_step=sub_step,
+                        module_name=self.module_name,
+                        target=self.target,
+                        scan_id=self.scan_id,
+                        module_inputs=self.module_inputs,
+                        process_number=self.process_number,
+                        module_thread_number=self.module_thread_number,
+                        total_module_thread_number=self.total_module_thread_number,
+                        request_number_counter=request_number_counter,
+                        total_number_of_requests=total_number_of_requests,
                     )
-                    thread.name = f"{self.target} -> {self.module_name} -> {sub_step}"
                     request_number_counter += 1
                     log.verbose_event_info(
-                        _("sending_module_request").format(
+                        _("sending_to_queue").format(
                             self.process_number,
                             self.module_name,
                             self.target,
@@ -187,13 +180,4 @@ class Module:
                             total_number_of_requests,
                         )
                     )
-                    thread.start()
                     time.sleep(self.module_inputs["time_sleep_between_requests"])
-                    active_threads.append(thread)
-                    wait_for_threads_to_finish(
-                        active_threads,
-                        maximum=self.module_inputs["thread_per_host"],
-                        terminable=True,
-                    )
-
-        wait_for_threads_to_finish(active_threads, maximum=None, terminable=True)
