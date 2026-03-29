@@ -1,4 +1,29 @@
 $(document).ready(function () {
+  function nettackerFilterPicker(inputSelector, containerSelector) {
+    $(document).on("input", inputSelector, function () {
+      var q = $(this).val().toLowerCase().trim();
+      $(containerSelector + " .nettacker-picker-item").each(function () {
+        var $el = $(this);
+        if ($el.hasClass("nettacker-select-all-item")) {
+          $el.toggle(true);
+          return;
+        }
+        var name = ($el.data("filter-name") || "").toString().toLowerCase();
+        $el.toggle(q === "" || name.indexOf(q) !== -1);
+      });
+    });
+  }
+  nettackerFilterPicker("#profiles-filter", "#profiles");
+  nettackerFilterPicker("#scan-methods-filter", "#selected_modules");
+
+  $("#results-filter").on("input", function () {
+    var q = $(this).val().toLowerCase().trim();
+    $("#scan_results .nettacker-result-card").each(function () {
+      var hay = ($(this).attr("data-filter-text") || "").toString();
+      $(this).toggle(q === "" || hay.indexOf(q) !== -1);
+    });
+  });
+
   // a function to replace chars in string
   String.prototype.replaceAll = function (search, replacement) {
     var target = this;
@@ -537,66 +562,29 @@ $(document).ready(function () {
       HTMLData +=
         "<a target='_blank' href=\"/results/get?id=" +
         id +
-        '" class="list-group-item list-group-item-action flex-column align-items-start">\n' +
-        '<div class="row" ><div class="d-flex w-100">\n' +
-        '<h3  class="mb-1">&nbsp;&nbsp;&nbsp;<span id="logintext"\n' +
-        'class="bold label label-primary">' +
+        '" class="list-group-item list-group-item-action nettacker-result-card">\n' +
+        '<div class="nettacker-result-head">\n' +
+        '<span class="nettacker-result-id label label-primary">' +
         id +
         "</span>" +
-        '<small class="label label-info card-date">' +
+        '<time class="nettacker-result-date text-muted">' +
         date +
-        "</small></h3>" +
-        "</div></div>" +
-        "<hr class='card-hr'>" +
-        "<p class='mb-1  bold label label-default'>scan_id:" +
+        "</time>\n" +
+        "</div>\n" +
+        '<div class="nettacker-result-body">\n' +
+        "<p class='nettacker-result-scan'><strong>scan_id</strong> <code>" +
         scan_id +
-        "</p><br>"
-        // "<p class='mb-1  bold label label-info'>report_filename:" +
-        // report_filename +
-        // "</p><br>" +
-        // "<p class='mb-1 bold label label-success'>events_num:" +
-        // events_num +
-        // "</p><br>" +
-        // "<p class='mb-1 bold label label-danger'>ports:" +
-        // ports +
-        // "</p><br>" +
-        // "<p class='mb-1 bold label label-info'>category:" +
-        // category +
-        // "</p><br>" +
-        // "<p class='mb-1 bold label label-success'>profile:" +
-        // profile +
-        // "</p><br>" +
-        // "<p class='mb-1 bold label label-warning'>selected_modules:" +
-        // selected_modules +
-        // "</p><br>" +
-        // "<p class='mb-1 bold  label label-primary'>start_api_server:" +
-        // start_api_server +
-        // "</p><br>" +
-        // "<p class='mb-1 bold label label-warning'>verbose:" +
-        // verbose +
-        // "</p><br>" +
-        // "<p class='mb-1 bold label label-info'>report_type:" +
-        // report_type +
-        // "</p><br>" +
-        // "<p class='mb-1 bold label label-primary'>graph_name:" +
-        // graph_name +
-        // "</p><br>" +
-        // "<p class='mb-1 bold label label-success'>language:" +
-        // language +
-        // "</p>" +
-        // "<span class='card-flag flag-icon flag-icon-" +
-        // flags[language] +
-        // "'></span><br>" +
-        // "<p class='mb-1 bold label label-default'>scan_cmd:" +
-        // scan_cmd +
-        // "</p>" +
-        // '</p>\n </a>' +
-        '<button class="mb-1 bold label card-date""><a href="/results/get_json?id=' +
+        "</code></p>\n" +
+        "</div>\n" +
+        '<div class="nettacker-result-actions">\n' +
+        '<a class="btn btn-xs btn-default" href="/results/get_json?id=' +
         id +
-        '">Get JSON</a></button>' +
-        '<button class="mb-1 bold label card-date""><a href="/results/get_csv?id=' +
+        '">JSON</a> ' +
+        '<a class="btn btn-xs btn-default" href="/results/get_csv?id=' +
         id +
-        '">Get CSV </a></button>';
+        '">CSV</a>\n' +
+        "</div>\n" +
+        "</a>";
     }
 
     if (res["msg"] == "No more search results") {
@@ -604,6 +592,15 @@ $(document).ready(function () {
     }
 
     document.getElementById("scan_results").innerHTML = HTMLData;
+    $("#scan_results .nettacker-result-card").each(function () {
+      var t =
+        ($(this).find(".nettacker-result-id").text() || "") +
+        " " +
+        ($(this).find(".nettacker-result-date").text() || "") +
+        " " +
+        ($(this).find("code").first().text() || "");
+      $(this).attr("data-filter-text", t.toLowerCase());
+    });
   }
 
   function get_results_list(result_page) {
@@ -617,6 +614,7 @@ $(document).ready(function () {
         $("#scan_results").removeClass("hidden");
         $("#refresh_btn").removeClass("hidden");
         $("#nxt_prv_btn").removeClass("hidden");
+        $("#results-filter-wrap").removeClass("hidden");
         show_scans(res);
       })
       .fail(function (jqXHR, textStatus, errorThrown) {
@@ -625,6 +623,7 @@ $(document).ready(function () {
           $("#get_results").addClass("hidden");
           $("#refresh_btn").addClass("hidden");
           $("#nxt_prv_btn").addClass("hidden");
+          $("#results-filter-wrap").addClass("hidden");
           $("#home").addClass("hidden");
           $("#crawler_area").addClass("hidden");
           $("#compare_area").addClass("hidden");

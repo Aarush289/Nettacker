@@ -25,6 +25,41 @@ log = logger.get_logger()
 nettacker_path_config = Config.path
 
 
+def build_html_report_dashboard(events, scan_id):
+    """
+    Build a compact summary strip (event/target/module counts + scan id) for HTML reports.
+    """
+    sid = html.escape(str(scan_id))
+    if not events:
+        return (
+            '<div class="nettacker-dash-meta"><strong>Scan ID:</strong> {0}</div>'
+            "<p>No events recorded for this report.</p>"
+        ).format(sid)
+    n = len(events)
+    unique_targets = {e.get("target") for e in events if e.get("target")}
+    unique_modules = {e.get("module_name") for e in events if e.get("module_name")}
+    unique_ports = {str(e.get("port")) for e in events if e.get("port") is not None}
+    return (
+        '<div class="nettacker-dash-grid">'
+        '<div class="nettacker-dash-card"><span class="dash-value">{0}</span>'
+        '<span class="dash-label">Events</span></div>'
+        '<div class="nettacker-dash-card"><span class="dash-value">{1}</span>'
+        '<span class="dash-label">Targets</span></div>'
+        '<div class="nettacker-dash-card"><span class="dash-value">{2}</span>'
+        '<span class="dash-label">Modules</span></div>'
+        '<div class="nettacker-dash-card"><span class="dash-value">{3}</span>'
+        '<span class="dash-label">Ports seen</span></div>'
+        "</div>"
+        '<div class="nettacker-dash-meta"><strong>Scan ID:</strong> {4}</div>'
+    ).format(
+        n,
+        len(unique_targets),
+        len(unique_modules),
+        len(unique_ports),
+        sid,
+    )
+
+
 def build_graph(graph_name, events):
     """
     build a graph
@@ -240,9 +275,12 @@ def create_report(options, scan_id):
 
         from nettacker.lib.html_log import log_data
 
+        dashboard_html = build_html_report_dashboard(all_scan_logs, scan_id)
+        # Placeholder order in table_title.html is {0}{1}, then {8}, then {2}…{7} (left-to-right).
         html_table_content = log_data.table_title.format(
             html_graph,
             log_data.css_1,
+            dashboard_html,
             "date",
             "target",
             "module_name",

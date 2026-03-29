@@ -111,7 +111,7 @@ def test_create_report_html(
         json_parse_js="<script>/*js*/</script>",
         table_end="</table>",
         table_items="<tr>{}{}</tr>",
-        table_title="<table>{}{}</table>{}{}{}{}{}{}",
+        table_title="<table>{}{}</table>{}{}{}{}{}{}{}",
     )
 
     with patch.dict(sys.modules, {"nettacker.lib.html_log.log_data": fake_log_data}):
@@ -315,7 +315,7 @@ def test_create_report_with_graph_name(
         json_parse_js="<script>/*js*/</script>",
         table_end="</table>",
         table_items="<tr>{}{}</tr>",
-        table_title="<table>{}{}</table>{}{}{}{}{}{}",
+        table_title="<table>{}{}</table>{}{}{}{}{}{}{}",
     )
 
     with patch.dict(sys.modules, {"nettacker.lib.html_log.log_data": fake_log_data}):

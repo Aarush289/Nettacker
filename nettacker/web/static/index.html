@@ -170,18 +170,32 @@
                 </div>
                 <div id="scan_options_combined">
                 <h3>Profiles</h3>
-                <div class="form-group">
-                    <div id="profiles" class="checkbox text-justify">
-            <label><input id="all_profiles" type="checkbox" class="check check-all-profiles"><a
-                class="label label-info">Select all profiles</a></label>&nbsp;&nbsp;&nbsp;&nbsp;
-            {% autoescape off %}{{profile}}{% endautoescape %}
+                <div class="form-group nettacker-picker-block">
+                    <div class="nettacker-picker-toolbar input-group col-xs-12 col-md-8">
+                        <span class="input-group-addon"><i class="fa fa-search"></i></span>
+                        <input type="search" id="profiles-filter" class="form-control nettacker-filter-input" placeholder="Search profiles by name..." autocomplete="off">
+                    </div>
+                    <p class="nettacker-picker-hint text-muted small">Type to filter the list. Your selections stay checked when hidden.</p>
+                    <div id="profiles" class="nettacker-picker-grid checkbox">
+                        <div class="nettacker-picker-item nettacker-select-all-item">
+                            <label><input id="all_profiles" type="checkbox" class="check check-all-profiles"><a
+                                class="label label-info">Select all profiles</a></label>
+                        </div>
+                        {% autoescape off %}{{profile}}{% endautoescape %}
                     </div>
                 </div>
                 <h3>Scan Methods</h3>
-                <div class="form-group">
-                    <div id="selected_modules" class="checkbox text-justify">
-                        <label><input id="all" type="checkbox" class="checkbox check-all-scans" ><a
-                                class="label label-info">Select all</a></label>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                <div class="form-group nettacker-picker-block">
+                    <div class="nettacker-picker-toolbar input-group col-xs-12 col-md-8">
+                        <span class="input-group-addon"><i class="fa fa-search"></i></span>
+                        <input type="search" id="scan-methods-filter" class="form-control nettacker-filter-input" placeholder="Search scan methods by name..." autocomplete="off">
+                    </div>
+                    <p class="nettacker-picker-hint text-muted small">Type to filter modules. Categories (scan / brute / vuln) keep their colors.</p>
+                    <div id="selected_modules" class="nettacker-picker-grid checkbox">
+                        <div class="nettacker-picker-item nettacker-select-all-item">
+                            <label><input id="all" type="checkbox" class="checkbox check-all-scans" ><a
+                                    class="label label-info">Select all</a></label>
+                        </div>
                         {% autoescape off %}{{selected_modules}}{% endautoescape %}
                     </div>
                 </div>
@@ -357,6 +371,12 @@
                 class="glyphicon glyphicon-refresh"></span> last updates</a>
             <a id="refresh_btn_page" class="btn btn-success"><span class="glyphicon glyphicon-refresh"></span>
                 reload current page</a>
+        </div>
+        <div id="results-filter-wrap" class="nettacker-results-toolbar hidden">
+            <div class="input-group col-xs-12 col-md-6">
+                <span class="input-group-addon"><i class="fa fa-search"></i></span>
+                <input type="search" id="results-filter" class="form-control" placeholder="Filter by scan row ID, scan ID, or date..." autocomplete="off">
+            </div>
         </div>
         <div id="scan_results" class="list-group hidden">
         </div>

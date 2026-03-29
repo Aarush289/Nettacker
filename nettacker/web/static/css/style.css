@@ -231,3 +231,88 @@ Relevant styles below
 .page_number_btn:hover:not(.active) {
   background-color: #e9ecef;
 }
+
+/* New scan: searchable profile / scan-method grids */
+.nettacker-picker-block {
+  margin-bottom: 1.25rem;
+}
+.nettacker-picker-toolbar {
+  margin-bottom: 8px;
+}
+.nettacker-picker-hint {
+  margin-bottom: 10px;
+}
+.nettacker-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px 14px;
+  align-items: start;
+  padding: 12px 14px;
+  background: #fafbfc;
+  border: 1px solid #e8e8ef;
+  border-radius: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+.nettacker-picker-item {
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+.nettacker-picker-item:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+.nettacker-picker-item .label {
+  margin-bottom: 0 !important;
+  white-space: normal;
+  word-break: break-word;
+}
+.nettacker-select-all-item {
+  grid-column: 1 / -1;
+  padding-bottom: 8px;
+  margin-bottom: 4px;
+  border-bottom: 1px dashed #ddd;
+}
+
+/* Results list */
+.nettacker-results-toolbar {
+  margin-bottom: 14px;
+}
+#results-filter-wrap .input-group {
+  max-width: 520px;
+}
+.list-group-item.nettacker-result-card {
+  overflow: visible;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  border: 1px solid #e0e4ea !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.list-group-item.nettacker-result-card:hover {
+  border-color: #c5d4e8 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+.nettacker-result-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin-bottom: 8px;
+}
+.nettacker-result-date {
+  font-size: 0.9em;
+}
+.nettacker-result-body {
+  margin-bottom: 10px;
+}
+.nettacker-result-scan code {
+  background: #f4f6f9;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.88em;
+}
+.nettacker-result-actions .btn {
+  margin-right: 6px;
+}

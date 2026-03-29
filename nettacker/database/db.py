@@ -1,3 +1,4 @@
+import html
 import json
 import time
 
@@ -905,7 +906,7 @@ def logs_to_report_html(target):
     Returns:
         HTML report
     """
-    from nettacker.core.graph import build_graph
+    from nettacker.core.graph import build_graph, build_html_report_dashboard
     from nettacker.lib.html_log import log_data
 
     session = create_connection()
@@ -943,26 +944,35 @@ def logs_to_report_html(target):
 
         html_graph = build_graph("d3_tree_v2_graph", logs)
 
+        scan_ref = logs[0]["scan_id"] if logs else ""
+        dashboard_html = build_html_report_dashboard(logs, scan_ref)
         html_content = log_data.table_title.format(
             html_graph,
             log_data.css_1,
+            dashboard_html,
             "date",
             "target",
             "module_name",
             "scan_id",
-            "port",
-            "event",
+            "details",
             "json_event",
         )
-        for event in logs:
+        for i, event in enumerate(logs, start=1):
+            details = (
+                "<strong>Port</strong><br>"
+                + html.escape(str(event["port"]))
+                + "<br><br><strong>Event</strong><br>"
+                + html.escape(str(event["event"]))
+            )
+            json_cell = html.escape(str(event["json_event"]))
             html_content += log_data.table_items.format(
                 event["date"],
                 event["target"],
                 event["module_name"],
                 event["scan_id"],
-                event["port"],
-                event["event"],
-                event["json_event"],
+                details,
+                i,
+                json_cell,
             )
         html_content += (
             log_data.table_end + '<p class="footer">' + messages("nettacker_report") + "</p>"
@@ -983,26 +993,35 @@ def logs_to_report_html(target):
         ]
         html_graph = build_graph("d3_tree_v2_graph", logs)
 
+        scan_ref = logs[0]["scan_id"] if logs else ""
+        dashboard_html = build_html_report_dashboard(logs, scan_ref)
         html_content = log_data.table_title.format(
             html_graph,
             log_data.css_1,
+            dashboard_html,
             "date",
             "target",
             "module_name",
             "scan_id",
-            "port",
-            "event",
+            "details",
             "json_event",
         )
-        for event in logs:
+        for i, event in enumerate(logs, start=1):
+            details = (
+                "<strong>Port</strong><br>"
+                + html.escape(str(event["port"]))
+                + "<br><br><strong>Event</strong><br>"
+                + html.escape(str(event["event"]))
+            )
+            json_cell = html.escape(str(event["json_event"]))
             html_content += log_data.table_items.format(
                 event["date"],
                 event["target"],
                 event["module_name"],
                 event["scan_id"],
-                event["port"],
-                event["event"],
-                event["json_event"],
+                details,
+                i,
+                json_cell,
             )
         html_content += (
             log_data.table_end + '<p class="footer">' + messages("nettacker_report") + "</p>"

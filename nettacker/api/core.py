@@ -1,3 +1,4 @@
+import html
 import os
 
 from flask import abort
@@ -224,10 +225,13 @@ def profiles():
             if (profile == "vulnerability")
             else "default"
         )
+        filter_token = html.escape(profile.lower(), quote=True)
         res += """
+            <div class="nettacker-picker-item" data-filter-name="{2}">
             <label><input id="{0}" type="checkbox" class="checkbox checkbox-{0}">
-            <a class="label label-{1}">{0}</a></label>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;""".format(
-            profile, label
+            <a class="label label-{1}">{0}</a></label>
+            </div>""".format(
+            profile, label, filter_token
         )
     return res
 
@@ -261,8 +265,11 @@ def scan_methods():
             if sm.endswith("_vuln")
             else "default"
         )
-        res += """<label><input id="{0}" type="checkbox" class="checkbox checkbox-{2}-module">
-        <a class="label label-{1}">{0}</a></label>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;""".format(
-            sm, label, profile
+        filter_token = html.escape(sm.lower(), quote=True)
+        res += """<div class="nettacker-picker-item" data-filter-name="{3}">
+        <label><input id="{0}" type="checkbox" class="checkbox checkbox-{2}-module">
+        <a class="label label-{1}">{0}</a></label>
+        </div>""".format(
+            sm, label, profile, filter_token
         )
     return res
