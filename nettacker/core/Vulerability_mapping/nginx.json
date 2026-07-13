@@ -1,0 +1,102 @@
+[
+  {
+    "range_start": "1.0.0",
+    "range_end": "1.5.4",
+    "cves": [
+      {
+        "cve_id": "CVE-2024-XHXY",
+        "summary": "Testing if works correctly or not"
+      }
+    ]
+  },
+  {
+    "range_start": "1.5.13",
+    "range_end": "1.25.0",
+    "cves": [
+      {
+        "cve_id": "CVE-2024-7347",
+        "summary": "Buffer over-read in ngx_http_mp4_module allows worker process crash via crafted MP4 file."
+      }
+    ]
+  },
+  {
+    "range_start": "1.25.0",
+    "range_end": "1.26.0",
+    "cves": [
+      {
+        "cve_id": "CVE-2024-35200",
+        "summary": "NULL pointer dereference in HTTP/3 handling."
+      },
+      {
+        "cve_id": "CVE-2024-7347",
+        "summary": "Buffer over-read in ngx_http_mp4_module allows worker process crash via crafted MP4 file."
+      }
+    ]
+  },
+  {
+    "range_start": "1.26.0",
+    "range_end": "1.26.1",
+    "cves": [
+      {
+        "cve_id": "CVE-2024-35200",
+        "summary": "NULL pointer dereference in HTTP/3 handling."
+      },
+      {
+        "cve_id": "CVE-2024-7347",
+        "summary": "Buffer over-read in ngx_http_mp4_module allows worker process crash via crafted MP4 file."
+      },
+      {
+        "cve_id": "CVE-2024-XHXY",
+        "summary": "Testing if works correctly or not"
+      }
+    ]
+  },
+  {
+    "range_start": "1.26.1",
+    "range_end": "1.26.2",
+    "cves": [
+      {
+        "cve_id": "CVE-2024-7347",
+        "summary": "Buffer over-read in ngx_http_mp4_module allows worker process crash via crafted MP4 file."
+      },
+      {
+        "cve_id": "CVE-2024-XHXY",
+        "summary": "Testing if works correctly or not"
+      }
+    ]
+  },
+  {
+    "range_start": "1.26.2",
+    "range_end": "1.26.5",
+    "cves": [
+      {
+        "cve_id": "CVE-2024-XHXY",
+        "summary": "Testing if works correctly or not"
+      }
+    ]
+  },
+  {
+    "range_start": "1.27.0",
+    "range_end": "1.27.1",
+    "cves": [
+      {
+        "cve_id": "CVE-2024-7347",
+        "summary": "Buffer over-read in ngx_http_mp4_module allows worker process crash via crafted MP4 file."
+      },
+      {
+        "cve_id": "CVE-2024-XHXY",
+        "summary": "Testing if works correctly or not"
+      }
+    ]
+  },
+  {
+    "range_start": "1.27.1",
+    "range_end": "1.27.5",
+    "cves": [
+      {
+        "cve_id": "CVE-2024-XHXY",
+        "summary": "Testing if works correctly or not"
+      }
+    ]
+  }
+]

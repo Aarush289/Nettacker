@@ -1,0 +1,12 @@
+[
+  {
+    "range_start": "6.0.0",
+    "range_end": "6.2.1",
+    "cves": [
+      {
+        "cve_id": "CVE-2023-XXXX",
+        "summary": "Example WordPress Core vulnerability."
+      }
+    ]
+  }
+]

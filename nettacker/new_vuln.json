@@ -1,0 +1,14 @@
+{
+  "nginx": [
+    {
+      "cve_id": "CVE-2024-XHXY",
+      "summary": "Testing if works correctly or not",
+      "vulnerable_ranges": [
+        { "introduced": "1.0.0", "fixed": "1.5.4" },
+        { "introduced": "1.26.0", "fixed": "1.26.5" },
+        { "introduced": "1.27.0", "fixed": "1.27.5" }
+      ]
+    }
+  ]
+}
+
